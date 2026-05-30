@@ -1587,7 +1587,7 @@ blocked — the chip's CPU is under OpenOCD control.
   "gdb_port": 3333,
   "telnet_port": 4444,
   "chip": "esp32c3",
-  "gdb_target": "target extended-remote pi4b.local:3333"
+  "gdb_target": "target extended-remote 192.168.0.42:3333"
 }
 ```
 
@@ -2035,7 +2035,7 @@ slot.  The portal tracks which slot's DUT is connected to the probe.
   "chip": "esp32",
   "gdb_port": 3333,
   "telnet_port": 4444,
-  "gdb_target": "target extended-remote pi4b.local:3333"
+  "gdb_target": "target extended-remote 192.168.0.42:3333"
 }
 ```
 

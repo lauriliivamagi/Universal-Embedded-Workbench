@@ -156,7 +156,9 @@ One connection at a time. See [Test BLE devices](../how-to-guides/test-ble-devic
 | GET | `/api/debug/probes` | Configured ESP-Prog probes | — | `ok`, `probes[]` (`{label, type, in_use, slot}`) |
 | GET | `/api/debug/group` | Slot groups for dual-USB configs | — | `ok`, `groups` |
 
-`gdb_target` is returned as `target extended-remote pi4b.local:<gdb_port>`.
+`gdb_target` is returned as `target extended-remote <host_ip>:<gdb_port>` — the
+workbench's detected IP (the same `host_ip` as the RFC2217 URLs), not a hardcoded
+hostname.
 OpenOCD auto-starts on hotplug for native-USB-JTAG chips (C3/C6/H2/S3). See
 [Debug with GDB](../how-to-guides/debug-with-gdb.md).
 

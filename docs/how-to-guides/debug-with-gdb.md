@@ -67,7 +67,7 @@ The start response carries everything you need to connect:
 |---|---|
 | `gdb_port` | The GDB remote port (e.g. `3333`). |
 | `telnet_port` | The OpenOCD telnet port (e.g. `4444`). |
-| `gdb_target` | The exact connect string: `target extended-remote pi4b.local:<gdb_port>`. |
+| `gdb_target` | The exact connect string, with the workbench's detected address filled in (the same `host_ip` as the RFC2217 URLs): `target extended-remote <host_ip>:<gdb_port>`. |
 
 Other endpoints: `GET /api/debug/status` (state of every slot),
 `GET /api/debug/probes` (configured ESP-Prog probes),

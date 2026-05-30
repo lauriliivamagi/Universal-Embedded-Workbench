@@ -2976,6 +2976,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if result.get("ok"):
             detected_chip = result.get("chip", chip)
             used_probe = result.get("probe")
+            # Connect string built from the workbench's own detected address
+            # (the same host_ip used for the RFC2217 slot URLs) rather than a
+            # hardcoded hostname, so it survives a rename or DHCP change.
+            result["gdb_target"] = (
+                f"target extended-remote {host_ip}:{gdb_port}")
             # Dual-USB (role=debug) or probe: serial stays running
             if slot.get("role") != "debug" and not used_probe:
                 slot["state"] = STATE_DEBUGGING

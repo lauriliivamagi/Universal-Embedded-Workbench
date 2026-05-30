@@ -73,8 +73,8 @@ mypy --strict .
 
 - Always release GPIO pins after use: `gpio_set(pin, "z")`
 - Environment variable `SERIAL_PI=192.168.0.87` set in devcontainer
-- Deploy portal to Pi: `scp pi/portal.py pi@192.168.0.87:/tmp/portal.py && ssh pi@192.168.0.87 'sudo cp /tmp/portal.py /usr/local/bin/rfc2217-portal && sudo systemctl restart rfc2217-portal'`
-- Deploy debug_controller: `scp pi/debug_controller.py pi@192.168.0.87:/tmp/ && ssh pi@192.168.0.87 'sudo cp /tmp/debug_controller.py /usr/local/bin/debug_controller.py && sudo systemctl restart rfc2217-portal'`
+- Deploy portal to Pi: `scp pi/portal.py pi4b@192.168.0.87:/tmp/portal.py && ssh pi4b@192.168.0.87 'sudo cp /tmp/portal.py /usr/local/bin/rfc2217-portal && sudo systemctl restart rfc2217-portal'`
+- Deploy debug_controller: `scp pi/debug_controller.py pi4b@192.168.0.87:/tmp/ && ssh pi4b@192.168.0.87 'sudo cp /tmp/debug_controller.py /usr/local/bin/debug_controller.py && sudo systemctl restart rfc2217-portal'`
 
 All functional behavior (slot auto-detect, flashing, GPIO API, signal generator, WiFi modes, GDB debug, RFC2217 semantics, etc.) is specified in `docs/Embedded-Workbench-FSD.md`. Don't restate it here.
 

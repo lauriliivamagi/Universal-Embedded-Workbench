@@ -65,7 +65,7 @@ This installs twelve skills:
 | `signal-generator` | Si5351 / GPCLK + PE4302 RF source — carrier, Morse, retune, attenuation |
 | `fsd-writer` | Functional Specification Document generator with reference templates |
 
-Most `workbench-*` skills assume the Pi is reachable at `workbench.local` (or the IP in `SERIAL_PI`). Override `SERIAL_PI` in your shell or devcontainer, or edit the URLs inside any skill that doesn't match your network.
+Most `workbench-*` skills assume the Pi is reachable at `pi4b.local` (or the IP in `SERIAL_PI`). Override `SERIAL_PI` in your shell or devcontainer, or edit the URLs inside any skill that doesn't match your network.
 
 Claude Code loads skills at the start of a session — restart your Claude Code session after copying.
 
@@ -76,7 +76,7 @@ Claude Code loads skills at the start of a session — restart your Claude Code 
 3. Query the API to see what's connected:
 
 ```bash
-curl http://workbench.local:8080/api/devices | jq
+curl http://pi4b.local:8080/api/devices | jq
 ```
 
 The response includes all 3 slots with serial URLs, chip info, debug status, and USB devices:
@@ -88,7 +88,7 @@ The response includes all 3 slots with serial URLs, chip info, debug status, and
       "label": "SLOT1",
       "state": "idle",
       "running": true,
-      "url": "rfc2217://workbench.local:4001",
+      "url": "rfc2217://pi4b.local:4001",
       "detected_chip": "esp32s3",
       "debugging": true,
       "debug_chip": "esp32s3",
@@ -108,7 +108,7 @@ The response includes all 3 slots with serial URLs, chip info, debug status, and
 4. Flash firmware via RFC2217 (binaries stay on your machine):
 
 ```bash
-esptool --port rfc2217://workbench.local:4001 --chip esp32c3 \
+esptool --port rfc2217://pi4b.local:4001 --chip esp32c3 \
   --before default-reset --after no-reset \
   write-flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 firmware.bin
 ```
@@ -117,7 +117,7 @@ esptool --port rfc2217://workbench.local:4001 --chip esp32c3 \
 
 ```bash
 riscv32-esp-elf-gdb build/project.elf \
-  -ex "target extended-remote workbench.local:3333" \
+  -ex "target extended-remote pi4b.local:3333" \
   -ex "monitor reset halt"
 ```
 
@@ -159,7 +159,7 @@ GPIO wiring is optional. Without it, the workbench still provides serial and deb
        | eth0 (wired)
        v
   Raspberry Pi ---- wlan0 (WiFi test AP: 192.168.4.x)
-  workbench.local      hci0  (Bluetooth LE)
+  pi4b.local      hci0  (Bluetooth LE)
        |             UDP :5555 (log receiver)
        | USB hub (internal on Pi 3/4/5, external on Zero)
        |
@@ -261,7 +261,7 @@ Logs are buffered (last 2000 lines) and available via the HTTP API, filterable b
 Serves firmware binaries over HTTP so ESP32 devices can perform OTA updates from the local network. Upload a `.bin` file, then point the ESP32's OTA URL to:
 
 ```
-http://workbench.local:8080/firmware/<project-name>/<filename>.bin
+http://pi4b.local:8080/firmware/<project-name>/<filename>.bin
 ```
 
 ### 7. BLE Proxy
@@ -316,12 +316,12 @@ A browser-based dashboard at **http://pi-ip:8080** showing all 3 serial slots, W
 
 ```bash
 # Flash via RFC2217 (binaries stay on host, no SCP needed)
-esptool --port rfc2217://workbench.local:4001 --chip esp32c3 \
+esptool --port rfc2217://pi4b.local:4001 --chip esp32c3 \
   --before default-reset --after no-reset \
   write-flash 0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 firmware.bin
 
 # Reboot device into new firmware
-curl -X POST http://workbench.local:8080/api/serial/reset \
+curl -X POST http://pi4b.local:8080/api/serial/reset \
   -H "Content-Type: application/json" -d '{"slot":"SLOT1"}'
 ```
 
@@ -330,13 +330,13 @@ curl -X POST http://workbench.local:8080/api/serial/reset \
 ```bash
 # Python
 import serial
-ser = serial.serial_for_url("rfc2217://workbench.local:4001", baudrate=115200)
+ser = serial.serial_for_url("rfc2217://pi4b.local:4001", baudrate=115200)
 ```
 
 ```ini
 # PlatformIO (platformio.ini)
 [env:esp32]
-monitor_port = rfc2217://workbench.local:4001
+monitor_port = rfc2217://pi4b.local:4001
 ```
 
 ### pytest Driver
@@ -348,7 +348,7 @@ pip install -e Universal-Embedded-Workbench/pytest
 ```python
 from workbench_driver import WorkbenchDriver
 
-wt = WorkbenchDriver("http://workbench.local:8080")
+wt = WorkbenchDriver("http://pi4b.local:8080")
 
 # Serial
 wt.serial_reset("SLOT1")
@@ -411,80 +411,80 @@ wt.test_end()
 
 ```bash
 # 1. Upload firmware to the workbench
-curl -X POST http://workbench.local:8080/api/firmware/upload \
+curl -X POST http://pi4b.local:8080/api/firmware/upload \
   -F "project=ios-keyboard" -F "file=@build/ios-keyboard.bin"
 
 # 2. Trigger OTA on the ESP32 via HTTP relay
-curl -X POST http://workbench.local:8080/api/wifi/http \
+curl -X POST http://pi4b.local:8080/api/wifi/http \
   -H "Content-Type: application/json" \
   -d '{"method":"POST","url":"http://192.168.4.15/ota"}'
 
 # 3. Monitor progress via UDP logs
-curl http://workbench.local:8080/api/udplog?source=192.168.4.15
+curl http://pi4b.local:8080/api/udplog?source=192.168.4.15
 ```
 
 ### curl Examples
 
 ```bash
 # Check connected devices
-curl http://workbench.local:8080/api/devices | jq
+curl http://pi4b.local:8080/api/devices | jq
 
 # Serial reset
-curl -X POST http://workbench.local:8080/api/serial/reset \
+curl -X POST http://pi4b.local:8080/api/serial/reset \
   -H "Content-Type: application/json" -d '{"slot":"SLOT1"}'
 
 # Start WiFi AP
-curl -X POST http://workbench.local:8080/api/wifi/ap_start \
+curl -X POST http://pi4b.local:8080/api/wifi/ap_start \
   -H "Content-Type: application/json" -d '{"ssid":"TestAP","password":"secret"}'
 
 # GPIO: hold boot pin LOW, pulse reset, release
-curl -X POST http://workbench.local:8080/api/gpio/set \
+curl -X POST http://pi4b.local:8080/api/gpio/set \
   -H "Content-Type: application/json" -d '{"pin":18,"value":0}'
-curl -X POST http://workbench.local:8080/api/gpio/set \
+curl -X POST http://pi4b.local:8080/api/gpio/set \
   -H "Content-Type: application/json" -d '{"pin":17,"value":0}'
 sleep 0.1
-curl -X POST http://workbench.local:8080/api/gpio/set \
+curl -X POST http://pi4b.local:8080/api/gpio/set \
   -H "Content-Type: application/json" -d '{"pin":17,"value":"z"}'
-curl -X POST http://workbench.local:8080/api/gpio/set \
+curl -X POST http://pi4b.local:8080/api/gpio/set \
   -H "Content-Type: application/json" -d '{"pin":18,"value":"z"}'
 
 # Get UDP logs
-curl http://workbench.local:8080/api/udplog?source=192.168.0.121&limit=50
+curl http://pi4b.local:8080/api/udplog?source=192.168.0.121&limit=50
 
 # Upload firmware
-curl -X POST http://workbench.local:8080/api/firmware/upload \
+curl -X POST http://pi4b.local:8080/api/firmware/upload \
   -F "project=ios-keyboard" -F "file=@build/ios-keyboard.bin"
 
 # BLE: scan, connect, write, disconnect
-curl -X POST http://workbench.local:8080/api/ble/scan \
+curl -X POST http://pi4b.local:8080/api/ble/scan \
   -H "Content-Type: application/json" -d '{"timeout":5,"name_filter":"iOS-Keyboard"}'
-curl -X POST http://workbench.local:8080/api/ble/connect \
+curl -X POST http://pi4b.local:8080/api/ble/connect \
   -H "Content-Type: application/json" -d '{"address":"1C:DB:D4:84:58:CE"}'
-curl -X POST http://workbench.local:8080/api/ble/write \
+curl -X POST http://pi4b.local:8080/api/ble/write \
   -H "Content-Type: application/json" \
   -d '{"characteristic":"6e400002-b5a3-f393-e0a9-e50e24dcca9e","data":"0248656c6c6f"}'
-curl -X POST http://workbench.local:8080/api/ble/disconnect
+curl -X POST http://pi4b.local:8080/api/ble/disconnect
 
 # Signal generator — continuous carrier at 3.5 MHz on Si5351
-curl -X POST http://workbench.local:8080/api/siggen/start \
+curl -X POST http://pi4b.local:8080/api/siggen/start \
   -H "Content-Type: application/json" \
   -d '{"freq_hz": 3500000, "backend": "si5351"}'
 
 # Signal generator — Morse-keyed beacon (auto-selects Si5351 if present, else GPCLK)
-curl -X POST http://workbench.local:8080/api/siggen/start \
+curl -X POST http://pi4b.local:8080/api/siggen/start \
   -H "Content-Type: application/json" \
   -d '{"freq_hz": 3571000, "morse": {"message": "VVV DE TEST", "wpm": 15, "repeat": true}}'
 
 # Set attenuation (requires PE4302 in RF path)
-curl -X POST http://workbench.local:8080/api/siggen/atten \
+curl -X POST http://pi4b.local:8080/api/siggen/atten \
   -H "Content-Type: application/json" -d '{"db": 12.5}'
 
 # Retune without restarting
-curl -X POST http://workbench.local:8080/api/siggen/freq \
+curl -X POST http://pi4b.local:8080/api/siggen/freq \
   -H "Content-Type: application/json" -d '{"freq_hz": 7100000}'
 
 # Stop
-curl -X POST http://workbench.local:8080/api/siggen/stop
+curl -X POST http://pi4b.local:8080/api/siggen/stop
 ```
 
 ---
@@ -505,7 +505,7 @@ curl -X POST http://workbench.local:8080/api/siggen/stop
 | GDB won't connect | OpenOCD may not have started (classic ESP32 without USB JTAG) | Check `/api/devices` for `debugging: true`. Classic ESP32 needs an ESP-Prog configured in `workbench.json` |
 | DUT not connecting to AP | Wrong WiFi credentials in DUT | Verify AP is running: `curl .../api/wifi/ap_status` |
 | BLE scan finds nothing | Bluetooth powered off | `sudo rfkill unblock bluetooth && sudo hciconfig hci0 up && sudo bluetoothctl power on` |
-| No UDP logs appearing | ESP32 not sending to correct IP/port | Verify firmware log host is `workbench.local:5555` |
+| No UDP logs appearing | ESP32 not sending to correct IP/port | Verify firmware log host is `pi4b.local:5555` |
 | GPIO pin has no effect | Wrong BCM pin number or not wired | Verify wiring; only BCM pins in the allowlist work |
 
 ---
@@ -536,7 +536,7 @@ Sub-chapters:
       "state": "idle",
       "present": true,
       "running": true,
-      "url": "rfc2217://workbench.local:4001",
+      "url": "rfc2217://pi4b.local:4001",
       "tcp_port": 4001,
       "devnode": "/dev/ttyACM0",
       "detected_chip": "esp32s3",
@@ -590,7 +590,7 @@ Auto-started on device plug-in for chips with USB JTAG or configured ESP-Prog pr
 | GET | `/api/debug/group` | Slot groups and roles (dual-USB ESP32-S3) |
 | GET | `/api/debug/probes` | Available ESP-Prog probes |
 
-GDB connects with `target extended-remote workbench.local:<gdb_port>`.
+GDB connects with `target extended-remote pi4b.local:<gdb_port>`.
 
 ---
 
@@ -771,7 +771,7 @@ Slots are **auto-detected** on startup — no config file is required. Only crea
 Use `rfc2217-learn-slots` to print a ready-to-paste config based on currently plugged devices:
 
 ```bash
-ssh pi@workbench.local sudo rfc2217-learn-slots
+ssh pi4b@pi4b.local sudo rfc2217-learn-slots
 ```
 
 Example:

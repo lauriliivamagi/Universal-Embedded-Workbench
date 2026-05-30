@@ -164,10 +164,10 @@ SLOT4 (ttyACM/USB) ──► plain_rfc2217_server :4004 ◄──── esptool 
 
 ```bash
 # List devices
-curl http://workbench.local:8080/api/devices
+curl http://pi4b.local:8080/api/devices
 
 # Portal info
-curl http://workbench.local:8080/api/info
+curl http://pi4b.local:8080/api/info
 ```
 
 ## Flashing ESP32
@@ -175,13 +175,13 @@ curl http://workbench.local:8080/api/info
 ```bash
 # ESP32-C3 (native USB, ttyACM)
 python3 -m esptool --chip esp32c3 \
-  --port "rfc2217://workbench.local:4001" \
+  --port "rfc2217://pi4b.local:4001" \
   --baud 921600 \
   write-flash -z 0x0 firmware.bin
 
 # ESP32 DevKit (UART bridge, ttyUSB)
 python3 -m esptool --chip esp32 \
-  --port "rfc2217://workbench.local:4001?ign_set_control" \
+  --port "rfc2217://pi4b.local:4001?ign_set_control" \
   --baud 921600 \
   write_flash -z 0x0 firmware.bin
 ```

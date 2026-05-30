@@ -364,7 +364,7 @@ def start(slot_label: str, slot: dict, gdb_port: int, telnet_port: int,
             "telnet_port": telnet_port,
             "probe": probe,
             "gdb_target": f"target extended-remote "
-                          f"workbench.local:{gdb_port}",
+                          f"pi4b.local:{gdb_port}",
         }
 
 

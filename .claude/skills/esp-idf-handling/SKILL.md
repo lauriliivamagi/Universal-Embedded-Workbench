@@ -34,7 +34,7 @@ curl -s http://pi4b.local:8080/api/info
 ## Step 2: Project Setup
 
 ```bash
-source /opt/esp-idf/export.sh
+source "${IDF_PATH:-/opt/esp/idf}/export.sh"
 idf.py create-project <name>           # Create new project
 idf.py set-target esp32s3              # Set target chip (esp32, esp32s3, esp32c3, etc.)
 idf.py menuconfig                      # Interactive configuration (writes sdkconfig)
@@ -53,7 +53,7 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-4mb.csv"
 ## Step 3: Build
 
 ```bash
-source /opt/esp-idf/export.sh
+source "${IDF_PATH:-/opt/esp/idf}/export.sh"
 idf.py build                           # Build
 idf.py fullclean                       # Clean build directory
 ```
@@ -75,7 +75,7 @@ idf.py fullclean                       # Clean build directory
 When the device is connected directly via USB (no workbench).
 
 ```bash
-source /opt/esp-idf/export.sh
+source "${IDF_PATH:-/opt/esp/idf}/export.sh"
 idf.py -p /dev/ttyUSB0 flash           # Flash to specific port
 idf.py -p /dev/ttyUSB0 monitor         # Open serial monitor
 idf.py -p /dev/ttyUSB0 flash monitor   # Flash and monitor

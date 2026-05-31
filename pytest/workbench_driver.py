@@ -629,6 +629,44 @@ class WorkbenchDriver:
         """Get BLE connection state."""
         return self._api_get("/api/ble/status")
 
+    # ── MQTT broker ──────────────────────────────────────────────────
+
+    def mqtt_start(self) -> dict:
+        """POST /api/mqtt/start — start the mosquitto broker (port 1883)."""
+        result = self._api_post("/api/mqtt/start", {}, timeout=15)
+        return {k: v for k, v in result.items() if k != "ok"}
+
+    def mqtt_stop(self) -> dict:
+        """POST /api/mqtt/stop — stop the mosquitto broker."""
+        result = self._api_post("/api/mqtt/stop", {}, timeout=10)
+        return {k: v for k, v in result.items() if k != "ok"}
+
+    def mqtt_status(self) -> dict:
+        """GET /api/mqtt/status — broker running state and port."""
+        result = self._api_get("/api/mqtt/status", timeout=5)
+        return {k: v for k, v in result.items() if k != "ok"}
+
+    # ── WiFi sniffer ─────────────────────────────────────────────────
+
+    def sniffer_start(self, ssid: str, password: str = "",
+                      channel: int = 6) -> dict:
+        """POST /api/wifi/sniffer_start — AP + NAT + DNS/SNI capture."""
+        body: dict = {"ssid": ssid, "channel": channel}
+        if password:
+            body["password"] = password
+        result = self._api_post("/api/wifi/sniffer_start", body, timeout=20)
+        return {k: v for k, v in result.items() if k != "ok"}
+
+    def sniffer_stop(self) -> dict:
+        """POST /api/wifi/sniffer_stop — stop capture, NAT, and AP."""
+        result = self._api_post("/api/wifi/sniffer_stop", {}, timeout=15)
+        return {k: v for k, v in result.items() if k != "ok"}
+
+    def sniffer_status(self) -> dict:
+        """GET /api/wifi/sniffer_status — capture state + traffic summary."""
+        result = self._api_get("/api/wifi/sniffer_status", timeout=10)
+        return {k: v for k, v in result.items() if k != "ok"}
+
     # ── Serial recovery ──────────────────────────────────────────────
 
     def serial_recover(self, slot: str) -> dict:

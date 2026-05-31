@@ -64,6 +64,8 @@ pytest pytest/workbench_test.py -k TestEndToEnd --run-dut --wt-url http://pi4b.l
 | WT-4xx | STA mode | DUT + `WIFI_TEST_*` env |
 | WT-5xx | HTTP relay | DUT |
 | WT-6xx | Scan | — |
+| WT-7xx | MQTT broker | — |
+| WT-8xx | WiFi sniffer (capture AP) | — |
 | WT-13xx | Signal generator | — |
 | WT-14xx | USB-JTAG debug | — |
 | WT-17xx | Auto-debug | — |

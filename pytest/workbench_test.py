@@ -351,6 +351,84 @@ class TestWiFiScan:
 
 
 # =====================================================================
+# WT-7xx  MQTT Broker
+# =====================================================================
+
+
+class TestMQTTBroker:
+    """WT-7xx: mosquitto broker lifecycle (instrument self-test, no DUT)."""
+
+    def test_wt700_start_broker(self, workbench):
+        """WT-700: MQTT_START brings up the broker on port 1883."""
+        try:
+            resp = workbench.mqtt_start()
+            assert resp.get("port") == 1883
+        finally:
+            workbench.mqtt_stop()
+
+    def test_wt701_status_reflects_lifecycle(self, workbench):
+        """WT-701: MQTT_STATUS reports running after start, stopped after stop."""
+        workbench.mqtt_start()
+        status = workbench.mqtt_status()
+        assert status["running"] is True
+        assert status["port"] == 1883
+        workbench.mqtt_stop()
+        status = workbench.mqtt_status()
+        assert status["running"] is False
+        assert status["port"] is None
+
+    def test_wt702_start_idempotent(self, workbench):
+        """WT-702: MQTT_START twice keeps a single broker on the same port."""
+        try:
+            workbench.mqtt_start()
+            resp = workbench.mqtt_start()
+            assert resp.get("port") == 1883
+            assert workbench.mqtt_status()["running"] is True
+        finally:
+            workbench.mqtt_stop()
+
+    def test_wt703_stop_idempotent(self, workbench):
+        """WT-703: MQTT_STOP with no broker running is a no-op."""
+        workbench.mqtt_stop()
+        workbench.mqtt_stop()
+        assert workbench.mqtt_status()["running"] is False
+
+
+# =====================================================================
+# WT-8xx  WiFi Sniffer
+# =====================================================================
+
+
+class TestWiFiSniffer:
+    """WT-8xx: capture-AP (DNS/SNI sniffer) lifecycle (self-test, no DUT)."""
+
+    def test_wt800_start_sniffer(self, workbench):
+        """WT-800: SNIFFER_START brings up the capture AP and returns its IP."""
+        try:
+            resp = workbench.sniffer_start("WT-SNIFF-800")
+            assert resp["ip"].startswith("192.168.")
+            assert resp["ssid"] == "WT-SNIFF-800"
+        finally:
+            workbench.sniffer_stop()
+
+    def test_wt801_status_reflects_active(self, workbench):
+        """WT-801: SNIFFER_STATUS reports active + ssid + summary while capturing."""
+        workbench.sniffer_start("WT-SNIFF-801")
+        status = workbench.sniffer_status()
+        assert status["active"] is True
+        assert status["ssid"] == "WT-SNIFF-801"
+        assert "summary" in status
+        workbench.sniffer_stop()
+        status = workbench.sniffer_status()
+        assert status["active"] is False
+
+    def test_wt802_stop_idempotent(self, workbench):
+        """WT-802: SNIFFER_STOP with no active capture is a no-op."""
+        workbench.sniffer_stop()
+        assert workbench.sniffer_status()["active"] is False
+
+
+# =====================================================================
 # WT-13xx  Signal Generator (Si5351 + PE4302, GPCLK fallback)
 # =====================================================================
 

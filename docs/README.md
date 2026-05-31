@@ -106,12 +106,15 @@ Background that makes troubleshooting make sense. Read when something surprises 
 
 ## Related material (not part of this set)
 
-- [`docs/Embedded-Workbench-FSD.md`](Embedded-Workbench-FSD.md) — the full functional
-  specification. Authoritative for *intended* behavior; where it diverges from the
-  shipped code, these operator docs follow the code.
-- The Claude Code **skills** under `skills/` (`esp-idf-handling`, `workbench-wifi`,
-  `signal-generator`, …) automate these workflows for an AI agent. The how-to guides
-  here are the human-readable equivalents.
-- The legacy [`User Manual.md`](User%20Manual.md) and
-  [`WiFi-Workbench-HTTP-Manual.md`](WiFi-Workbench-HTTP-Manual.md) predate this set and
-  use older host names (`serial1`, `192.168.0.87`). Prefer the pages above.
+See the repo-root [`AUTHORITY.md`](../AUTHORITY.md) for the full source-of-truth hierarchy.
+
+- [`docs/spec/Embedded-Workbench-FSD.md`](spec/Embedded-Workbench-FSD.md) — the full
+  functional specification. Describes *intended* design; **non-authoritative for shipped
+  behavior**. Where it diverges from the code, these operator docs (which follow the code) win.
+- The Claude Code **skills** under [`.claude/skills/`](../.claude/skills/) (`esp-idf-handling`,
+  `workbench-wifi`, `signal-generator`, …) automate these workflows for an AI agent. The
+  how-to guides here are the human-readable equivalents.
+- [`docs/legacy/`](legacy/) holds the superseded [`User Manual.md`](legacy/User%20Manual.md)
+  and [`WiFi-Workbench-HTTP-Manual.md`](legacy/WiFi-Workbench-HTTP-Manual.md), which predate
+  this set and use older host names (`serial1`, `192.168.0.87`). Non-authoritative — prefer
+  the pages above.

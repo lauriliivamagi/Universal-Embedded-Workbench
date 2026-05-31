@@ -26,8 +26,8 @@ You're setting up a new workbench from scratch.
 **Step 1 — Pi service** (on the Raspberry Pi):
 
 ```bash
-git clone https://github.com/SensorsIot/Universal-Embedded-Workbench.git
-cd Universal-Embedded-Workbench/pi
+git clone https://github.com/SensorsIot/Universal-ESP32-Workbench.git
+cd Universal-ESP32-Workbench/pi
 sudo bash install.sh
 ```
 
@@ -40,7 +40,7 @@ The installer sets up all dependencies (pyserial, hostapd, dnsmasq, bleak, espto
 For dev machines that drive an existing workbench, or that only want a subset of the skills (e.g. `fsd-writer`, `signal-generator`) without running a workbench at all.
 
 ```bash
-git clone https://github.com/SensorsIot/Universal-Embedded-Workbench.git /tmp/uew
+git clone https://github.com/SensorsIot/Universal-ESP32-Workbench.git /tmp/uew
 mkdir -p .claude/skills
 cp -r /tmp/uew/.claude/skills/. .claude/skills/
 rm -rf /tmp/uew
@@ -342,7 +342,7 @@ monitor_port = rfc2217://pi4b.local:4001
 ### pytest Driver
 
 ```bash
-pip install -e Universal-Embedded-Workbench/pytest
+pip install -e Universal-ESP32-Workbench/pytest
 ```
 
 ```python
@@ -754,9 +754,36 @@ pytest/
   conftest.py                Fixtures and CLI options
   workbench_test.py          End-to-end workbench tests
 
+firmware/
+  test-firmware/             Full ESP32 test firmware (UDP log, WiFi prov, OTA, BLE)
+  debug-test/                Minimal per-chip debug firmware + pre-built binaries
+
 docs/
-  Embedded-Workbench-FSD.md  Full functional specification
+  README.md                  Operator documentation (Diataxis); source-of-truth, code-first
+  spec/Embedded-Workbench-FSD.md   Functional spec (design intent; non-authoritative)
+  legacy/                    Superseded original-author manuals
 ```
+
+See [`AUTHORITY.md`](AUTHORITY.md) for which of these wins when they disagree.
+
+### Sparse checkout (optional)
+
+One repo, but each context is a self-contained top-level root, so a consumer can pull only
+its subtree with cone-mode sparse-checkout:
+
+```bash
+# Pi-only (the instrument): just the deployable service
+git clone --filter=blob:none --no-checkout <url> uew && cd uew
+git sparse-checkout init --cone
+git sparse-checkout set pi
+git checkout
+
+# Laptop/agent (no Pi runtime): skills, firmware, tests, docs, dev env
+git sparse-checkout set .claude firmware pytest docs .devcontainer container
+```
+
+This is per-clone local config, **not** an enforced boundary — it trims dead weight, but the
+real boundaries are the directory layout, the per-root READMEs, and [`AUTHORITY.md`](AUTHORITY.md).
 
 ---
 

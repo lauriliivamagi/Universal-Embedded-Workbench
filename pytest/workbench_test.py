@@ -16,7 +16,7 @@ from workbench_driver import CommandError, CommandTimeout
 # Path to pre-built debug-test firmware binaries
 DEBUG_TEST_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "debug-test", "output"
+    "firmware", "debug-test", "output"
 )
 
 

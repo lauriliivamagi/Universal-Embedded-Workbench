@@ -1,5 +1,11 @@
 # Embedded Workbench — Functional Specification Document
 
+> **STATUS: design intent — NON-AUTHORITATIVE for shipped behavior.**
+> This document describes the *intended* design, not what the code necessarily does. It is
+> known to diverge: it targets a **Pi Zero W**, but the production build is a **Pi 4B +
+> Argon One M.2**. For real behavior, read the code (`pi/`) and the operator docs (`docs/`).
+> See [`../../AUTHORITY.md`](../../AUTHORITY.md) for the source-of-truth hierarchy.
+
 ## 1. Overview
 
 ### 1.1 Purpose
@@ -2586,7 +2592,7 @@ Add `--run-dut` to include tests that require a WiFi device under test.
 | WT-1805 | End-to-end: debug auto-restarts after flash | End-to-End | Yes |
 
 \* WT-503/504 require a running AP (wifi_network fixture) but not a physical DUT.
-\* WT-18xx require debug-test firmware binaries in `debug-test/output/<chip>/`.
+\* WT-18xx require debug-test firmware binaries in `firmware/debug-test/output/<chip>/`.
 
 ---
 

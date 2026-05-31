@@ -184,7 +184,7 @@ The siggen service responds when the change is in effect. If a downstream measur
 
 ## Reference
 
-- Functional spec: `docs/Embedded-Workbench-FSD.md` §FR-027 (Signal Generator).
+- Functional spec: `docs/spec/Embedded-Workbench-FSD.md` §FR-027 (Signal Generator).
 - Backend logic: `pi/signal_generator.py` (orchestrator), `pi/si5351.py`, `pi/gpclk.py`, `pi/pe4302.py`, `pi/morse.py`.
 - HTTP handlers: `pi/portal.py` (`_handle_siggen_*`).
 - Driver: `pytest/workbench_driver.py` (`siggen_*` methods).

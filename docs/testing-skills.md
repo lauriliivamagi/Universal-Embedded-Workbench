@@ -1,6 +1,6 @@
 # Testing Workbench Skills
 
-The `test-firmware/` directory contains a generic ESP-IDF firmware that exercises
+The `firmware/test-firmware/` directory contains a generic ESP-IDF firmware that exercises
 all workbench infrastructure without any project-specific logic. Use it to
 validate that workbench skills work correctly after making changes to the
 workbench software or skills.
@@ -10,7 +10,7 @@ workbench software or skills.
 Requires ESP-IDF v5.x (tested with 5.1+).
 
 ```bash
-cd test-firmware
+cd firmware/test-firmware
 idf.py set-target esp32s3    # or esp32, esp32c3
 idf.py build
 ```

@@ -178,8 +178,8 @@ hostname    # → pi4b
 Clone the project onto the Pi and run the installer:
 
 ```bash
-git clone https://github.com/SensorsIot/Universal-Embedded-Workbench.git
-cd Universal-Embedded-Workbench/pi
+git clone https://github.com/SensorsIot/Universal-ESP32-Workbench.git
+cd Universal-ESP32-Workbench/pi
 sudo bash install.sh
 ```
 

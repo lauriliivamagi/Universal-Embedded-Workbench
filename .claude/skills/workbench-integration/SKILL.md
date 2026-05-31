@@ -55,21 +55,21 @@ Steps 1–7 handle firmware integration. Steps 8–12 write FSD sections 7–10.
 
 ## Template Reference
 
-All template code lives in `Universal-Embedded-Workbench/test-firmware/`. When adding modules, copy from these templates and customize project-specific values:
+All template code lives in `Universal-ESP32-Workbench/firmware/test-firmware/`. When adding modules, copy from these templates and customize project-specific values:
 
 | Module | Template source | Customization |
 |--------|----------------|---------------|
-| `udp_log.c/.h` | `test-firmware/main/udp_log.c` | None (universal) |
-| `wifi_prov.c/.h` | `test-firmware/main/wifi_prov.c` | Change `AP_SSID`. |
-| `portal.html` | `test-firmware/main/portal.html` | Change `<title>` and `<h1>` |
-| `ota_update.c/.h` | `test-firmware/main/ota_update.c` | Change `OTA_DEFAULT_URL` |
-| `ble_nus.c/.h` | `test-firmware/main/ble_nus.c` | Change BLE device name |
-| `http_server.c/.h` | `test-firmware/main/http_server.c` | Add project-specific endpoints |
-| `nvs_store.c/.h` | `test-firmware/main/nvs_store.c` | Change `NVS_NAMESPACE` |
-| `dns_server/` | `test-firmware/components/dns_server/` | None (copy entire dir) |
-| `partitions.csv` | `test-firmware/partitions.csv` | None (dual OTA layout) |
-| `sdkconfig.defaults` | `test-firmware/sdkconfig.defaults` | Reference for required options |
-| `app_main.c` | `test-firmware/main/app_main.c` | Reference for init order only |
+| `udp_log.c/.h` | `firmware/test-firmware/main/udp_log.c` | None (universal) |
+| `wifi_prov.c/.h` | `firmware/test-firmware/main/wifi_prov.c` | Change `AP_SSID`. |
+| `portal.html` | `firmware/test-firmware/main/portal.html` | Change `<title>` and `<h1>` |
+| `ota_update.c/.h` | `firmware/test-firmware/main/ota_update.c` | Change `OTA_DEFAULT_URL` |
+| `ble_nus.c/.h` | `firmware/test-firmware/main/ble_nus.c` | Change BLE device name |
+| `http_server.c/.h` | `firmware/test-firmware/main/http_server.c` | Add project-specific endpoints |
+| `nvs_store.c/.h` | `firmware/test-firmware/main/nvs_store.c` | Change `NVS_NAMESPACE` |
+| `dns_server/` | `firmware/test-firmware/components/dns_server/` | None (copy entire dir) |
+| `partitions.csv` | `firmware/test-firmware/partitions.csv` | None (dual OTA layout) |
+| `sdkconfig.defaults` | `firmware/test-firmware/sdkconfig.defaults` | Reference for required options |
+| `app_main.c` | `firmware/test-firmware/main/app_main.c` | Reference for init order only |
 
 ## Workbench Compatibility Contract
 
@@ -200,7 +200,7 @@ Update the project's build configuration:
 - `json` (OTA HTTP endpoint)
 - Add `EMBED_FILES "portal.html"` if wifi_prov uses captive portal
 
-**partitions.csv** — copy from `test-firmware/` (`partitions-4mb.csv` for 4MB flash, `partitions.csv` for 8MB+). See `esp-idf-handling` skill for flash size and partition table rules.
+**partitions.csv** — copy from `firmware/test-firmware/` (`partitions-4mb.csv` for 4MB flash, `partitions.csv` for 8MB+). See `esp-idf-handling` skill for flash size and partition table rules.
 
 **sdkconfig.defaults** — verify required options are set (NimBLE, partition table, flash size, etc.). See `esp-idf-handling` skill for flash size defaults.
 

@@ -1,5 +1,13 @@
 # Container Configuration
 
+- **Audience:** developers running the workbench client in a container/VM
+- **Deployment target:** laptop containers (Docker, LXC, generic) — **not** the Pi
+- **Authority:** derived dev-convenience patterns
+- **Edit rule:** reference material; see [`../AUTHORITY.md`](../AUTHORITY.md)
+
+This is the **alternate/VM** container guide (generic Docker/LXC/Proxmox patterns). For the
+primary VS Code dev environment, use [`../.devcontainer/`](../.devcontainer/) instead.
+
 ## Overview
 
 With RFC2217, containers connect to ESP32 devices over the network. No USB passthrough or special privileges required.

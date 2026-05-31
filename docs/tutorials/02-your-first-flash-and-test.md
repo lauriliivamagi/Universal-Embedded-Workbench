@@ -70,7 +70,7 @@ That's your target: **SLOT1**, an **esp32c3**, on serial port **4001**. The
 
 ## Step 3 — Build firmware
 
-Use any ESP-IDF project (the repo's `test-firmware/` works, or `idf.py
+Use any ESP-IDF project (the repo's `firmware/test-firmware/` works, or `idf.py
 create-project hello`). Set the target to match your board and build:
 
 ```bash

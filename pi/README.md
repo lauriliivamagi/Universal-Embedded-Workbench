@@ -1,69 +1,37 @@
 # Embedded Workbench — Raspberry Pi Setup
 
+- **Audience:** whoever provisions/maintains the Pi instrument
+- **Deployment target:** runs **on** the Raspberry Pi (installed via `install.sh` + systemd)
+- **Authority:** source-of-truth for the instrument runtime (this is the deployable unit)
+- **Edit rule:** edit the code here; it is what ships. See [`../AUTHORITY.md`](../AUTHORITY.md).
+
 Raspberry Pi-based test instrument for ESP32 firmware: RFC2217 serial proxy with automatic udev hotplug, WiFi testing (AP/STA), BLE proxy, MQTT broker, GDB/JTAG debugging via OpenOCD, traffic sniffer, and RF signal generator (Si5351 + PE4302).
+
+The production build is a **Raspberry Pi 4B in an Argon One M.2 case**. The procedure below
+also works on a Pi 3B+/5; the Pi Zero 2 W is supported as a legacy/low-end target but needs
+the extra memory hardening in the [Pi Zero 2 W appendix](#appendix-pi-zero-2-w-memory-hardening).
 
 ## SD Card Rebuild (from scratch)
 
 Complete procedure to build a new SD card with full workbench functionality.
-Tested on **Raspberry Pi Zero 2 W** (512 MB RAM).
 
 ### Step 1: Flash the OS
 
 Flash **Raspberry Pi OS Lite (64-bit)** to the SD card using Raspberry Pi Imager.
 
 In the imager settings:
-- **Hostname:** `Serial1`
+- **Hostname:** `pi4b`
 - **Enable SSH:** yes (password or key auth)
-- **Username:** `pi`
+- **Username:** `pi4b`
 - **WiFi:** configure your network (country code `CH` or as needed)
 - **Locale:** set timezone as needed
 
-### Step 2: First boot — system hardening
+### Step 2: First boot
 
-These changes prevent the OOM crash cycle that kills Pi Zero 2 W boards.
-**Do this before installing the workbench.**
-
-```bash
-# SSH into the Pi
-ssh pi@Serial1.local
-
-# --- Reduce GPU memory (saves 48 MB on a headless Pi) ---
-echo "gpu_mem=16" | sudo tee -a /boot/firmware/config.txt
-
-# --- Add real disk swap (zram alone is not enough for 512 MB) ---
-sudo fallocate -l 1G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# --- Disable unnecessary services ---
-sudo systemctl disable --now ModemManager 2>/dev/null || true
-sudo systemctl disable cloud-init cloud-init-local cloud-init-main \
-     cloud-init-network cloud-final cloud-config 2>/dev/null || true
-
-# --- Fix dual wpa_supplicant conflict ---
-# Keep wpa_supplicant.service (used by NetworkManager), disable the
-# interface-specific instance that fights over wlan0
-sudo systemctl disable --now wpa_supplicant@wlan0 2>/dev/null || true
-
-# --- Limit journal size ---
-sudo mkdir -p /etc/systemd/journald.conf.d
-cat <<'EOF' | sudo tee /etc/systemd/journald.conf.d/size.conf
-[Journal]
-SystemMaxUse=16M
-EOF
-sudo systemctl restart systemd-journald
-
-# --- Reboot to apply gpu_mem ---
-sudo reboot
-```
-
-After reboot, verify:
-```bash
-vcgencmd get_mem gpu          # should show gpu=16M
-free -h                       # should show ~480 MB total + swap
-```
+On a Pi 4B (2–8 GB RAM) no memory hardening is needed — skip straight to Step 3. On a **Pi
+Zero 2 W** (512 MB) you must first apply the [memory hardening
+appendix](#appendix-pi-zero-2-w-memory-hardening) to avoid the OOM crash cycle, **before**
+installing the workbench.
 
 ### Step 3: Install the workbench
 
@@ -220,7 +188,58 @@ free -h
 | Issue | Solution |
 |-------|----------|
 | Connection refused on port 5000 | Portal runs on **port 8080**, not 5000 |
-| Pi crashes / reboots randomly | OOM — apply Step 2 hardening, check `free -h` |
+| Pi crashes / reboots randomly | OOM (Pi Zero 2 W) — apply the [memory hardening appendix](#appendix-pi-zero-2-w-memory-hardening), check `free -h` |
 | `sudo` segfaults | SD card corruption from hard crashes — reflash |
 | Timeout during flash | Try `--no-stub` flag with esptool |
 | Port busy | Only one RFC2217 client can connect per slot |
+
+---
+
+## Appendix: Pi Zero 2 W memory hardening
+
+**Only needed on a Pi Zero 2 W (512 MB RAM).** Skip this entirely on a Pi 3B+/4B/5. These
+changes prevent the OOM crash cycle that kills low-memory boards. Apply them in Step 2
+(first boot), **before** installing the workbench.
+
+```bash
+# SSH into the Pi
+ssh pi4b@pi4b.local
+
+# --- Reduce GPU memory (saves 48 MB on a headless Pi) ---
+echo "gpu_mem=16" | sudo tee -a /boot/firmware/config.txt
+
+# --- Add real disk swap (zram alone is not enough for 512 MB) ---
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# --- Disable unnecessary services ---
+sudo systemctl disable --now ModemManager 2>/dev/null || true
+sudo systemctl disable cloud-init cloud-init-local cloud-init-main \
+     cloud-init-network cloud-final cloud-config 2>/dev/null || true
+
+# --- Fix dual wpa_supplicant conflict ---
+# Keep wpa_supplicant.service (used by NetworkManager), disable the
+# interface-specific instance that fights over wlan0
+sudo systemctl disable --now wpa_supplicant@wlan0 2>/dev/null || true
+
+# --- Limit journal size ---
+sudo mkdir -p /etc/systemd/journald.conf.d
+cat <<'EOF' | sudo tee /etc/systemd/journald.conf.d/size.conf
+[Journal]
+SystemMaxUse=16M
+EOF
+sudo systemctl restart systemd-journald
+
+# --- Reboot to apply gpu_mem ---
+sudo reboot
+```
+
+After reboot, verify:
+
+```bash
+vcgencmd get_mem gpu          # should show gpu=16M
+free -h                       # should show ~480 MB total + swap
+```

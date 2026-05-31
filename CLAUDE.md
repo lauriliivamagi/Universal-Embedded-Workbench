@@ -2,40 +2,35 @@
 
 Raspberry Pi-based test instrument for ESP32 firmware: serial proxy (RFC2217), WiFi AP/STA, GPIO control, HTTP relay, all via REST API.
 
+## Source of truth
+
+See [`AUTHORITY.md`](AUTHORITY.md) for the full hierarchy. In short: **code wins**, then
+operator docs (`docs/`, maintained code-first), then agent skills (`.claude/skills/`). The
+FSD (`docs/spec/Embedded-Workbench-FSD.md`) is design intent, **non-authoritative** for
+shipped behavior. This file holds pointers + commands only — **do not restate behavior here
+or in the FSD**; document behavior in code, then operator docs.
+
 ## Tech Stack
 
 - **Runtime**: Python 3.9+ (Pi), Python 3.11 (devcontainer)
 - **Frameworks**: Flask-like HTTP server (portal.py), pyserial (RFC2217), hostapd/dnsmasq (WiFi)
 - **Testing**: pytest, ruff, mypy
-- **Hardware**: Raspberry Pi Zero W (eth0 + wlan0), USB hub for serial slots
+- **Hardware**: Raspberry Pi 4B in an Argon One M.2 case (eth0 + wlan0), USB hub for serial slots
 
-## Project Structure
+## Repository layout (context-bounded roots)
 
-```
-pi/
-  portal.py                   # Web portal + API + proxy supervisor (main entry)
-  wifi_controller.py          # WiFi instrument (AP, STA, scan, relay)
-  plain_rfc2217_server.py     # RFC2217 server with DTR/RTS passthrough
-  install.sh                  # Pi installer
-  config/signalgen.json       # Signal generator config (Si5351 I2C, PE4302 pins)
-  udev/                       # udev rules for hotplug
-  signal_generator.py         # Unified RF source: Si5351 (I2C) with GPCLK fallback + optional PE4302 attenuator
-  si5351.py                   # Si5351A I2C clock generator driver
-  pe4302.py                   # PE4302 3-wire serial step attenuator driver
-  gpclk.py                    # BCM2835/7 GPCLK hardware clock (GPIO 5/6)
-  morse.py                    # Backend-agnostic Morse keyer
-  bcm_gpio.py                 # Shared /dev/mem GPIO primitives
-  systemd/                    # systemd service unit
-pytest/
-  workbench_driver.py   # WorkbenchDriver class for test scripts
-  conftest.py                 # pytest fixtures
-  workbench_test.py           # End-to-end workbench tests
-docs/
-  Embedded-Workbench-FSD.md  # Full functional specification
-container/                    # Alternate devcontainer config
-skills/esp32-test-harness/    # Claude Code skill
-skills/signal-generator/      # Signal generator skill (Si5351 + PE4302, GPCLK fallback, optional Morse keying)
-```
+Each root carries a README declaring its audience and authority. Top-level map:
+
+| Root | Context | Runs/used | Authority |
+|------|---------|-----------|-----------|
+| `pi/` | Pi instrument | On the Pi (deployed via `install.sh` + systemd) | Source-of-truth (runtime) |
+| `.claude/skills/` | Laptop agent | Loaded in-repo by Claude Code; never deployed | Derived |
+| `firmware/` | DUT firmware | Flashed onto ESP32s (`test-firmware/`, `debug-test/`) | Source-of-truth (firmware) |
+| `pytest/` | Test harness | On the laptop, against the Pi over HTTP | Source-of-truth (tests) |
+| `docs/` | Operator docs | Read; Diataxis tree | Source-of-truth (operation, code-first) |
+| `docs/spec/` | Spec | Read | Design intent — non-authoritative |
+| `docs/legacy/` | Legacy | Read | Superseded — ignore |
+| `.devcontainer/`, `container/` | Dev env | Laptop containers | Derived |
 
 ## Commands
 
@@ -67,7 +62,8 @@ mypy --strict .
 
 ## Specifications
 
-- `docs/Embedded-Workbench-FSD.md` -- Full functional specification (Embedded Workbench)
+- `docs/spec/Embedded-Workbench-FSD.md` -- Full functional specification (design intent,
+  **non-authoritative** for shipped behavior; for behavior read the code and `docs/`).
 
 ## Key Conventions
 
@@ -76,7 +72,7 @@ mypy --strict .
 - Deploy portal to Pi: `scp pi/portal.py pi4b@192.168.0.87:/tmp/portal.py && ssh pi4b@192.168.0.87 'sudo cp /tmp/portal.py /usr/local/bin/rfc2217-portal && sudo systemctl restart rfc2217-portal'`
 - Deploy debug_controller: `scp pi/debug_controller.py pi4b@192.168.0.87:/tmp/ && ssh pi4b@192.168.0.87 'sudo cp /tmp/debug_controller.py /usr/local/bin/debug_controller.py && sudo systemctl restart rfc2217-portal'`
 
-All functional behavior (slot auto-detect, flashing, GPIO API, signal generator, WiFi modes, GDB debug, RFC2217 semantics, etc.) is specified in `docs/Embedded-Workbench-FSD.md`. Don't restate it here.
+Functional behavior (slot auto-detect, flashing, GPIO API, signal generator, WiFi modes, GDB debug, RFC2217 semantics, etc.) lives in the code (`pi/`) and the operator docs (`docs/`); the FSD at `docs/spec/Embedded-Workbench-FSD.md` is the design-intent reference. Don't restate behavior here.
 
 ## Gotchas / Do Not
 

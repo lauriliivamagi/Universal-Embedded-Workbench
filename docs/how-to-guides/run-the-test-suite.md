@@ -71,7 +71,7 @@ pytest pytest/workbench_test.py -k TestEndToEnd --run-dut --wt-url http://pi4b.l
 | WT-19xx | Serial buffer + multi-slot detection | — |
 
 WT-18xx are **order-dependent**: `WT-1800` (the flash) must pass before the rest
-run, and they use the pre-built binaries in `debug-test/output/<chip>/`.
+run, and they use the pre-built binaries in `firmware/debug-test/output/<chip>/`.
 
 ## How the tests interact with you
 

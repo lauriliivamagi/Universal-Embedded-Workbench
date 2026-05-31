@@ -32,6 +32,12 @@ Each root carries a README declaring its audience and authority. Top-level map:
 | `docs/legacy/` | Legacy | Read | Superseded — ignore |
 | `.devcontainer/`, `container/` | Dev env | Laptop containers | Derived |
 
+Each context root carries its own `CLAUDE.md` with working guidance for that subtree
+(Claude Code loads it when you work there): [`pi/CLAUDE.md`](pi/CLAUDE.md),
+[`firmware/CLAUDE.md`](firmware/CLAUDE.md), [`pytest/CLAUDE.md`](pytest/CLAUDE.md),
+[`.claude/skills/CLAUDE.md`](.claude/skills/CLAUDE.md), [`docs/CLAUDE.md`](docs/CLAUDE.md).
+This root file holds only repo-wide orientation; per-context specifics live in those.
+
 ## Commands
 
 ```bash

@@ -44,6 +44,5 @@ only, no system changes: `sudo bash install.sh --update`.
 
 ## Known wrinkles (pre-existing — don't silently "fix" as part of unrelated work)
 
-- `install.sh` references `cw_beacon.py`, which was retired and no longer exists.
 - `c3_reset_test.py` and `serial_proxy.py` are tracked but **not** installed by `install.sh`
   (dev/scratch).

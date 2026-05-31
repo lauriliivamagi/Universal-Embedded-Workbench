@@ -18,9 +18,9 @@ Do not relocate it.
 
 - Each skill is `<name>/SKILL.md` with YAML frontmatter: `name` and a `description` whose text
   includes the trigger phrases. Extra material goes in `<name>/references/`.
-- `esp-idf-handling/` and `esp-pio-handling/` ship a `discover-workbench.py` that resolves
-  `workbench.local` and writes `/etc/hosts`. Skills assume the Pi at `workbench.local` /
-  `pi4b.local` (or `$SERIAL_PI`).
+- `esp-idf-handling/` and `esp-pio-handling/` ship a `discover-workbench.py` that finds the
+  workbench and writes an `/etc/hosts` entry. Skills assume the Pi at `pi4b.local` (or
+  `$SERIAL_PI`).
 - `fsd-writer/` generates FSDs for **user** projects (`<project>-fsd.md`); it is unrelated to
   this repo's own `docs/spec/Embedded-Workbench-FSD.md`.
 

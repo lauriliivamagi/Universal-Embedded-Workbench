@@ -196,7 +196,7 @@ on the workbench AP can be tested against MQTT without internet.
 | POST | `/api/mqtt/stop` | Stop the broker |
 | GET | `/api/mqtt/status` | `{"ok", "running", "port"}` |
 
-Reachable at `192.168.4.1:1883` from AP clients, or `workbench.local:1883` on the
+Reachable at `192.168.4.1:1883` from AP clients, or `pi4b.local:1883` on the
 LAN. See [Configuration files](configuration-files.md#mosquitto-broker).
 
 ## WiFi sniffer

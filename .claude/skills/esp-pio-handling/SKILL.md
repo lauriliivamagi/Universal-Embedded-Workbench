@@ -18,7 +18,7 @@ Automatically adapts to local USB or remote workbench.
 Determine whether a workbench is available or the device is local.
 
 ```bash
-curl -s http://workbench.local:8080/api/info
+curl -s http://pi4b.local:8080/api/info
 ```
 
 - **Response received** → workbench available, use RFC2217 remote upload
@@ -61,7 +61,7 @@ pio run -t upload && pio device monitor # Upload and monitor
 When a workbench is available. Check the portal for slot-to-port assignments:
 
 ```bash
-curl -s http://workbench.local:8080/api/devices | jq '.slots[] | {label, url, state}'
+curl -s http://pi4b.local:8080/api/devices | jq '.slots[] | {label, url, state}'
 ```
 
 ### Preferred: `POST /api/flash` (Pi-side esptool)
@@ -78,7 +78,7 @@ partition table in `.pio/build/<env>/`. Upload them with the explicit
 
 ```bash
 cd .pio/build/<env>
-curl -s -X POST http://workbench.local:8080/api/flash \
+curl -s -X POST http://pi4b.local:8080/api/flash \
   -F slot=SLOT1 -F chip=esp32 -F baud=921600 \
   -F 'bin@0x1000=@bootloader.bin' \
   -F 'bin@0x8000=@partitions.bin' \
@@ -95,13 +95,13 @@ stdout+stderr>", "returncode": N}`.
 ### Fallback: direct RFC2217 upload (LAN clients only)
 
 ```ini
-upload_port = rfc2217://workbench.local:4001
-monitor_port = rfc2217://workbench.local:4001
+upload_port = rfc2217://pi4b.local:4001
+monitor_port = rfc2217://pi4b.local:4001
 ```
 
 ```bash
-pio run -t upload --upload-port 'rfc2217://workbench.local:4001?ign_set_control'
-pio device monitor --port 'rfc2217://workbench.local:4001?ign_set_control'
+pio run -t upload --upload-port 'rfc2217://pi4b.local:4001?ign_set_control'
+pio device monitor --port 'rfc2217://pi4b.local:4001?ign_set_control'
 ```
 
 ## Step 4: Monitor
@@ -111,10 +111,10 @@ pio device monitor --port 'rfc2217://workbench.local:4001?ign_set_control'
 pio device monitor
 
 # Workbench — via RFC2217
-pio device monitor --port 'rfc2217://workbench.local:4001?ign_set_control'
+pio device monitor --port 'rfc2217://pi4b.local:4001?ign_set_control'
 
 # Workbench — via UDP logs (non-blocking)
-curl "http://workbench.local:8080/api/udplog?limit=50"
+curl "http://pi4b.local:8080/api/udplog?limit=50"
 ```
 
 ## Boot Mode
@@ -138,6 +138,6 @@ If upload fails, put ESP32 in bootloader mode:
 
 | Issue | Solution |
 |-------|----------|
-| Connection refused | Check portal at `http://workbench.local:8080`; verify device state is `idle` |
+| Connection refused | Check portal at `http://pi4b.local:8080`; verify device state is `idle` |
 | Timeout during flash | Use `--no-stub` flag; check network |
 | Port busy | Close other terminal/tool using the same RFC2217 port |

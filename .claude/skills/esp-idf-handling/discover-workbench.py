@@ -118,7 +118,7 @@ def main():
         return 1
 
     for wb in results:
-        hostname = wb.get("hostname", "workbench")
+        hostname = wb.get("hostname", "pi4b")
         ip = wb.get("ip", wb["source_ip"])
         fqdn = f"{hostname}.local"
 

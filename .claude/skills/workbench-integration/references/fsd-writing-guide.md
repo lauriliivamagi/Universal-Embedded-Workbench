@@ -15,8 +15,8 @@ operations are the operational procedures for this project.
 
 Query the workbench for hardware details:
 ```bash
-curl -s http://workbench.local:8080/api/devices | jq .
-curl -s http://workbench.local:8080/api/info | jq .
+curl -s http://pi4b.local:8080/api/devices | jq .
+curl -s http://pi4b.local:8080/api/info | jq .
 ```
 
 Record: slot label, TCP port, RFC2217 URL, device state.
@@ -32,10 +32,10 @@ Write a hardware table and a project-specific values table:
 
 | What | Where |
 |------|-------|
-| ESP32 USB | Workbench slot <N>, serial at `rfc2217://workbench.local:<PORT>` |
-| Workbench host | `workbench.local:8080` |
-| UDP log sink | `workbench.local:5555` |
-| OTA firmware URL | `http://workbench.local:8080/firmware/<project>/<project>.bin` |
+| ESP32 USB | Workbench slot <N>, serial at `rfc2217://pi4b.local:<PORT>` |
+| Workbench host | `pi4b.local:8080` |
+| UDP log sink | `pi4b.local:5555` |
+| OTA firmware URL | `http://pi4b.local:8080/firmware/<project>/<project>.bin` |
 
 #### Project-Specific Values
 

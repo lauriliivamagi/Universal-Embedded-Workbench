@@ -38,7 +38,7 @@ table and the code win**.
 
 | Thing | Value | Notes |
 |---|---|---|
-| Host name | `pi4b.local` (humans) · `workbench.local` (agents) | The Pi's mDNS name is `pi4b.local` (set the hostname to `pi4b`). The bundled skills use the stable alias `workbench.local`, which `discover-workbench.py` resolves to the workbench (writing `/etc/hosts`). Override either with the `SERIAL_PI` env var. |
+| Host name | `pi4b.local` | The Pi's mDNS name (set the hostname to `pi4b`); skills and docs use it everywhere. `discover-workbench.py` can also write an `/etc/hosts` entry for it. Override with the `SERIAL_PI` env var (e.g. a fixed IP). |
 | Portal / API | `http://pi4b.local:8080` | All control goes through here. **Never SSH in to operate the workbench** — SSH is only for deploying code. |
 | Authentication | **None** | The API is wide open on the LAN. Keep the workbench on a trusted network. See [Architecture overview](explanation/architecture-overview.md#security-posture). |
 | Slot labels | `SLOT1`, `SLOT2`, … | A slot is a **physical USB port** (a Pi jack, or a port on an attached hub), not a device. Same jack → same slot, always. |

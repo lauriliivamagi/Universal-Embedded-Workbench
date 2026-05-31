@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, urlparse
 
 import debug_controller
 import gpiod
+import mqtt_controller
 import wifi_controller
 try:
     import ble_controller
@@ -1641,6 +1642,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/siggen/frequencies":
             qs = parse_qs(parsed.query)
             self._handle_siggen_frequencies(qs)
+        elif path == "/api/mqtt/status":
+            self._handle_mqtt_status()
+        elif path == "/api/wifi/sniffer_status":
+            self._handle_wifi_sniffer_status()
         elif path == "/api/udplog":
             qs = parse_qs(parsed.query)
             self._handle_get_udplog(qs)
@@ -1717,6 +1722,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._handle_firmware_upload()
         elif path == "/api/flash":
             self._handle_flash()
+        elif path == "/api/mqtt/start":
+            self._handle_mqtt_start()
+        elif path == "/api/mqtt/stop":
+            self._handle_mqtt_stop()
+        elif path == "/api/wifi/sniffer_start":
+            self._handle_wifi_sniffer_start()
+        elif path == "/api/wifi/sniffer_stop":
+            self._handle_wifi_sniffer_stop()
         elif path == "/api/ble/scan":
             self._handle_ble_scan()
         elif path == "/api/ble/connect":
@@ -2922,6 +2935,57 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         result = ble_controller.write(characteristic, data, response=response)
         self._send_json(result, 200 if result.get("ok") else 500)
+
+    # -- MQTT broker handlers --
+
+    def _handle_mqtt_start(self):
+        try:
+            result = mqtt_controller.start()
+        except Exception as e:
+            log_activity(f"mqtt.start — failed: {e}", "error")
+            self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+        log_activity("mqtt.start — broker up", "ok")
+        self._send_json({"ok": True, **result})
+
+    def _handle_mqtt_stop(self):
+        mqtt_controller.stop()
+        log_activity("mqtt.stop — broker down", "ok")
+        self._send_json({"ok": True})
+
+    def _handle_mqtt_status(self):
+        self._send_json({"ok": True, **mqtt_controller.status()})
+
+    # -- WiFi sniffer handlers --
+
+    def _handle_wifi_sniffer_start(self):
+        body = self._read_json() or {}
+        ssid = body.get("ssid", "")
+        if not ssid:
+            self._send_json({"ok": False, "error": "missing ssid"}, 400)
+            return
+        password = body.get("password", "")
+        channel = body.get("channel", 6)
+        try:
+            result = wifi_controller.sniffer_start(ssid, password, channel)
+        except Exception as e:
+            log_activity(f"wifi.sniffer_start — failed: {e}", "error")
+            self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+        log_activity(f"wifi.sniffer_start — ssid={ssid}", "ok")
+        self._send_json({"ok": True, **result})
+
+    def _handle_wifi_sniffer_stop(self):
+        try:
+            wifi_controller.sniffer_stop()
+        except Exception as e:
+            self._send_json({"ok": False, "error": str(e)}, 500)
+            return
+        log_activity("wifi.sniffer_stop", "ok")
+        self._send_json({"ok": True})
+
+    def _handle_wifi_sniffer_status(self):
+        self._send_json({"ok": True, **wifi_controller.sniffer_status()})
 
     # -- GDB debug handlers --
 

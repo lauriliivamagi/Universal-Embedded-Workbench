@@ -79,7 +79,7 @@ Claude Code loads skills at the start of a session — restart your Claude Code 
 curl http://pi4b.local:8080/api/devices | jq
 ```
 
-The response includes all 3 slots with serial URLs, chip info, debug status, and USB devices:
+The response includes every detected slot with serial URLs, chip info, debug status, and USB devices (this Argon One M.2 build exposes 3 — the M.2 SSD claims one of the Pi 4B's four USB ports):
 
 ```json
 {
@@ -105,7 +105,7 @@ The response includes all 3 slots with serial URLs, chip info, debug status, and
 }
 ```
 
-4. Flash firmware via RFC2217 (binaries stay on your machine):
+4. Flash firmware. The simplest method is `POST /api/flash` (Pi-side esptool — works from anywhere, including off-LAN). To keep binaries on your own machine, flash over RFC2217 instead:
 
 ```bash
 esptool --port rfc2217://pi4b.local:4001 --chip esp32c3 \
@@ -136,7 +136,7 @@ Everything auto-restarts after a flash -- the workbench detects the USB re-enume
 | **USB hub** (Pi Zero 2 W only) | Connect multiple ESP32 boards. Pi 3/4/5 already have 4 USB ports. |
 | **Jumper wires** (optional) | Pi GPIO to DUT GPIO for automated boot mode / reset control |
 
-**Auto-detection:** The portal walks `/sys/bus/usb/devices/` on startup, finds every downstream USB hub, and creates one slot per hub port. Ports occupied by non-serial devices (USB Ethernet, storage) are filtered out, so only ESP32-usable ports become slots. TCP ports are auto-assigned as `4001 + slot_index`, GDB ports as `3333 + slot_index`.
+**Auto-detection:** The portal walks `/sys/bus/usb/devices/` on startup, finds every downstream USB hub, and creates one slot per hub port. Ports occupied by non-serial devices (USB Ethernet, storage) are filtered out, so only ESP32-usable ports become slots. TCP ports start at `4001` for SLOT1 and increment by one per slot; GDB ports start at `3333`.
 
 Some Pi boards advertise more hub ports than are physically wired to USB-A jacks. From sysfs alone these unwired "phantom" ports are indistinguishable from empty wired jacks, so the portal keeps a small per-model phantom table keyed on `/proc/device-tree/model` (`_PHANTOM_PORTS_BY_MODEL` in `pi/portal.py`). Add an entry there if you find a new phantom on a model not yet listed.
 
@@ -144,7 +144,7 @@ Some Pi boards advertise more hub ports than are physically wired to USB-A jacks
 |----------|---------------|-------|
 | Pi Zero 2 W + external hub | 3–4 (external hub ports minus ethernet) | Tested |
 | Pi 3 B+ | 4 | Phantom port `0:1.4` filtered via model table (tested on Rev 1.3) |
-| Pi 4 B | 2 USB2 + 2 USB3 slots | Same kernel API, expected to work |
+| Pi 4 B | up to 4 (≈3 on the Argon One M.2 build — the SSD claims one USB) | Tested |
 | Pi 5 | Up to 4 slots on XHCI | Same kernel API, expected to work |
 
 No config file is needed for auto-detection. Custom overrides (labels, specific TCP/GDB ports, GPIO pins, debug probes) can be provided via `/etc/rfc2217/workbench.json`.
@@ -177,8 +177,8 @@ eth0 carries all management traffic (HTTP API, RFC2217 serial). wlan0 is dedicat
 |------|----------|-----------|---------|
 | 8080 | TCP/HTTP | Clients -> Pi | Web portal, REST API, firmware downloads |
 | 4001+ | TCP/RFC2217 | Clients -> Pi | Serial connections (auto-assigned per device) |
-| 3334+ | TCP/GDB | Clients -> Pi | GDB connections (`3333 + slot_index`) |
-| 4444+ | TCP/telnet | Clients -> Pi | OpenOCD telnet (`4443 + slot_index`) |
+| 3333+ | TCP/GDB | Clients -> Pi | GDB connections (SLOT1 = 3333, +1 per slot) |
+| 4444+ | TCP/telnet | Clients -> Pi | OpenOCD telnet (SLOT1 = 4444, +1 per slot) |
 | 5555 | UDP | ESP32 -> Pi | Debug log receiver |
 | 5888 | UDP | Clients <-> Pi | Discovery beacon |
 
@@ -237,7 +237,7 @@ AP and STA are mutually exclusive -- starting one stops the other.
 
 Drive Pi GPIO pins from test scripts to simulate button presses on the DUT. The most common use: hold a pin LOW during reset to force the DUT into a specific boot mode (captive portal, factory reset, etc.).
 
-**Allowed pins (BCM numbering):** 5, 6, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27
+**Allowed pins (BCM numbering):** 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27. BCM 2/3 (I²C), 5/6 (GPCLK), and 12/13 (PE4302) are reserved — the API rejects them with a `400`.
 
 **Important:** Always release pins when done by setting them to `"z"` (high-impedance input). A pin left driven LOW will prevent the DUT from booting normally.
 
@@ -301,7 +301,7 @@ Both backends share a Morse keyer, so you can key any carrier with a CW message 
 
 ### 10. Web Portal
 
-A browser-based dashboard at **http://pi-ip:8080** showing all 3 serial slots, WiFi state, activity log, test progress, and human interaction modal. Each slot card shows:
+A browser-based dashboard at **http://pi-ip:8080** showing every serial slot, WiFi state, activity log, test progress, and human interaction modal. Each slot card shows:
 - Connection status (RUNNING / IDLE / ABSENT / RECOVERING / DOWNLOAD MODE)
 - Detected chip type (e.g., ESP32-C6) when identified via JTAG
 - Debug status (active GDB port or idle)
@@ -824,9 +824,9 @@ Example:
 | `gpio_en` | int | Pi BCM GPIO wired to DUT EN/RST. Omit if not wired. |
 | `slots[].label` | string | Slot name shown in UI |
 | `slots[].usb_prefix` | string | USB path prefix (e.g. `"0:1.1"` matches hub port 1). Auto-detected if omitted. |
-| `slots[].tcp_port` | int | RFC2217 TCP port. Defaults to `4000 + slot_index`. |
-| `slots[].gdb_port` | int | OpenOCD GDB port. Defaults to `3332 + slot_index`. |
-| `slots[].openocd_telnet_port` | int | OpenOCD telnet port. Defaults to `4443 + slot_index`. |
+| `slots[].tcp_port` | int | RFC2217 TCP port. Defaults to `4001` for SLOT1 (+1 per slot). |
+| `slots[].gdb_port` | int | OpenOCD GDB port. Defaults to `3333` for SLOT1 (+1 per slot). |
+| `slots[].openocd_telnet_port` | int | OpenOCD telnet port. Defaults to `4444` for SLOT1 (+1 per slot). |
 | `debug_probes[]` | array | ESP-Prog/FT2232H probe definitions. Omit if using USB JTAG only. |
 
 **Separate config for the signal generator** lives at `/etc/rfc2217/signalgen.json` (I²C bus, PE4302 pins, Si5351 address). Defaults match the wiring documented in Service 8 — edit only if you wired things differently.

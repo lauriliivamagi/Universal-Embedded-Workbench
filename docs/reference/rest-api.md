@@ -185,13 +185,32 @@ otherwise). See [Run the test suite](../how-to-guides/run-the-test-suite.md).
 
 ---
 
+## MQTT broker
+
+Starts/stops a local Mosquitto broker (anonymous, `1883/tcp`) on demand so DUTs
+on the workbench AP can be tested against MQTT without internet.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/mqtt/start` | Start the broker → `{"ok", "port": 1883}` |
+| POST | `/api/mqtt/stop` | Stop the broker |
+| GET | `/api/mqtt/status` | `{"ok", "running", "port"}` |
+
+Reachable at `192.168.4.1:1883` from AP clients, or `workbench.local:1883` on the
+LAN. See [Configuration files](configuration-files.md#mosquitto-broker).
+
+## WiFi sniffer
+
+Runs the WiFi AP with NAT + internet forwarding and captures DNS / TLS-SNI
+traffic from connected DUTs (with IP geolocation). It starts its own AP, so it is
+mutually exclusive with `ap_start`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/wifi/sniffer_start` | Start AP + capture `{"ssid", "password?", "channel?"}` → `{"ok", "ip", "ssid"}` |
+| POST | `/api/wifi/sniffer_stop` | Stop capture, NAT, and AP |
+| GET | `/api/wifi/sniffer_status` | `{"ok", "active", "ssid", "summary", "stations"}` |
+
 ## Not exposed by the API
 
-These exist as code or skills but have **no HTTP endpoint** — don't write
-automation against them:
-
-- **MQTT** — the installer runs a Mosquitto broker on `1883/tcp` (anonymous), but
-  the portal has **no `/api/mqtt/*` routes**. Devices and `mosquitto_pub`/`sub`
-  talk to the broker directly. See [Configuration files](configuration-files.md#mosquitto-broker).
-- **Packet sniffer** — `sniffer.py` exists but is not wired to any route.
 - `serial_proxy.py` is a standalone CLI; the portal runs `plain_rfc2217_server.py` per slot.

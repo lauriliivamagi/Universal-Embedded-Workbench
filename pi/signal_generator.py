@@ -41,9 +41,9 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "gpclk": {"default_pin": 5},
     "pe4302": {
         "enabled": True,
-        "data_pin": 16,
-        "clk_pin": 20,
-        "le_pin": 21,
+        "data_pin": 13,
+        "clk_pin": 12,
+        "le_pin": 6,
     },
 }
 

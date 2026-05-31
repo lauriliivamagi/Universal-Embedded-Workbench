@@ -1,3 +1,16 @@
+---
+type: how-to
+domain: clear
+audience: developer
+stability: evolving
+authority:
+  provenance: institutional
+  verifiability: testable
+  evidence: strong
+  currency: dated
+epistemic-layer: practice
+---
+
 # Testing Workbench Skills
 
 The `firmware/test-firmware/` directory contains a generic ESP-IDF firmware that exercises
@@ -36,7 +49,7 @@ esptool.py --port rfc2217://pi4b.local:4001?ign_set_control \
            write_flash @flash_args
 ```
 
-Or use the `workbench-serial-flashing` skill.
+Or use the `esp-idf-handling` skill.
 
 ## What the Firmware Does
 
@@ -56,14 +69,14 @@ Each workbench skill maps to specific test steps using the firmware:
 
 | Skill | Test steps | What confirms it works |
 |-------|-----------|----------------------|
-| `workbench-serial-flashing` | Erase flash, trigger flapping, recover, re-flash | Flapping detected, recovery runs, firmware boots after re-flash |
+| `esp-idf-handling` | Erase flash, trigger flapping, recover, re-flash | Flapping detected, recovery runs, firmware boots after re-flash |
 | `workbench-logging` | Start serial monitor; check UDP logs | Serial shows boot output; `GET /api/udplog` returns heartbeat lines |
 | `workbench-wifi` | Run `enter-portal` with device in AP mode | Serial shows `"STA got IP"`, device joins workbench network |
 | `workbench-ble` | Scan for `WB-Test`, connect, discover services | BLE scan finds device; NUS service UUID appears in characteristics |
-| `workbench-ota` | Upload binary, trigger OTA via HTTP `/ota` | Serial shows `"OTA succeeded"`, device reboots with new firmware |
-| `workbench-gpio` | Toggle EN pin to reset device (GPIO slots only) | Serial monitor shows fresh boot output |
-| `workbench-mqtt` | Start broker, verify device can reach `192.168.4.1:1883` | (Firmware doesn't use MQTT; test broker start/stop independently) |
-| `workbench-test` | Run full validation walkthrough below | All steps pass |
+| `esp-idf-handling` (OTA) | Upload binary, trigger OTA via the device's HTTP `/ota` endpoint | Serial shows `"OTA succeeded"`, device reboots with new firmware |
+| `esp32-test-harness` | Toggle EN pin to reset device (GPIO slots only) | Serial monitor shows fresh boot output |
+| `workbench-mqtt` | `POST /api/mqtt/start`, verify device can reach `192.168.4.1:1883` | (Firmware doesn't use MQTT; test broker start/stop independently) |
+| `workbench-test-handling` | Run full validation walkthrough below | All steps pass |
 
 ## Validation Walkthrough
 

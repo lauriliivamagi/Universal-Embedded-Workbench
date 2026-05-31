@@ -38,7 +38,7 @@ table and the code win**.
 
 | Thing | Value | Notes |
 |---|---|---|
-| Host name | `pi4b.local` | Set the Pi hostname to `pi4b`. Override with the `SERIAL_PI` env var if you use a fixed IP. |
+| Host name | `pi4b.local` (humans) · `workbench.local` (agents) | The Pi's mDNS name is `pi4b.local` (set the hostname to `pi4b`). The bundled skills use the stable alias `workbench.local`, which `discover-workbench.py` resolves to the workbench (writing `/etc/hosts`). Override either with the `SERIAL_PI` env var. |
 | Portal / API | `http://pi4b.local:8080` | All control goes through here. **Never SSH in to operate the workbench** — SSH is only for deploying code. |
 | Authentication | **None** | The API is wide open on the LAN. Keep the workbench on a trusted network. See [Architecture overview](explanation/architecture-overview.md#security-posture). |
 | Slot labels | `SLOT1`, `SLOT2`, … | A slot is a **physical USB port** (a Pi jack, or a port on an attached hub), not a device. Same jack → same slot, always. |
@@ -112,8 +112,11 @@ See the repo-root [`AUTHORITY.md`](../AUTHORITY.md) for the full source-of-truth
   functional specification. Describes *intended* design; **non-authoritative for shipped
   behavior**. Where it diverges from the code, these operator docs (which follow the code) win.
 - The Claude Code **skills** under [`.claude/skills/`](../.claude/skills/) (`esp-idf-handling`,
-  `workbench-wifi`, `signal-generator`, …) automate these workflows for an AI agent. The
-  how-to guides here are the human-readable equivalents.
+  `workbench-wifi`, `signal-generator`, …) automate these workflows for an AI agent. Most
+  how-to guides here have a matching skill and vice-versa, though a few skills
+  (`workbench-integration`, `fsd-writer`, `workbench-mqtt`) are agent-only with no separate
+  human guide. [Testing workbench skills](testing-skills.md) covers validating them against
+  the test firmware.
 - [`docs/legacy/`](legacy/) holds the superseded [`User Manual.md`](legacy/User%20Manual.md)
   and [`WiFi-Workbench-HTTP-Manual.md`](legacy/WiFi-Workbench-HTTP-Manual.md), which predate
   this set and use older host names (`serial1`, `192.168.0.87`). Non-authoritative — prefer

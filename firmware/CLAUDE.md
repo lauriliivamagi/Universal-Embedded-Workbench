@@ -26,6 +26,18 @@ idf.py build                   # -> build/wb-test-firmware.bin
 - `CMakeLists.txt` uses relative `EXTRA_COMPONENT_DIRS` and `$ENV{IDF_PATH}` — paths are
   internal, so the `firmware/` grouping doesn't affect builds.
 
+## Tooling (MCP)
+
+The repo root wires up two Espressif MCP servers (see [`../.mcp.json`](../.mcp.json)) — use them
+when working in this `firmware/` tree, in preference to guessing or generic web search:
+
+- **`espressif-documentation`** — look up **ESP-IDF v5.x** APIs, Kconfig options, and guides
+  (this firmware targets v5.x; ignore v6.0+ API guidance).
+- **`esp-component-registry`** — search managed components before hand-rolling or running
+  `idf.py add-dependency`.
+
+They're only relevant here — the rest of the repo is Pi-side Python and docs.
+
 ## Don't
 
 - Don't add Pi-side or host-side code here — this tree only contains firmware that runs on the

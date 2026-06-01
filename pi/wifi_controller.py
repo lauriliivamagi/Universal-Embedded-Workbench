@@ -186,6 +186,22 @@ def _kill_existing(name):
 
 def _release_wlan():
     """Ensure wlan0 is not managed by NetworkManager or wpa_supplicant."""
+    # Release wlan0 from NetworkManager first. The Pi has a single radio; if NM is
+    # holding wlan0 as a station (it auto-associates to stored networks on boot),
+    # hostapd cannot create the SoftAP and the driver rejects the second interface
+    # with err=-16 (EBUSY). Bouncing the link below is NOT enough on its own — NM
+    # re-associates as soon as the link comes back up. (Cold-boot persistence still
+    # needs autoconnect disabled at the netplan layer; see
+    # docs/how-to-guides/run-wifi-tests.md.)
+    try:
+        subprocess.run(
+            ["nmcli", "device", "disconnect", WLAN_IF],
+            capture_output=True, timeout=5, check=False,
+        )
+    except FileNotFoundError:
+        pass  # NetworkManager not installed — nothing to release
+    except Exception:
+        pass
     # Kill any existing wpa_supplicant on wlan0
     try:
         subprocess.run(

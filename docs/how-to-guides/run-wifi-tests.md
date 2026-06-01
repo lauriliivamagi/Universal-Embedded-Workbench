@@ -181,6 +181,57 @@ curl -s "$W/api/wifi/events?timeout=30" | jq '.events'   # expect STA_CONNECT
   the most common surprise.
 - AP and station are mutually exclusive; starting one tears down the other.
 
+## Troubleshooting: AP won't start / DUT associates but never gets an IP
+
+The Pi has a **single WiFi radio**. If something else holds `wlan0` as a station,
+the workbench cannot bring up its SoftAP and `enter-portal` silently fails.
+
+Symptoms:
+
+- `POST /api/enter-portal` times out; the DUT never joins.
+- `GET /api/wifi/ap_status` → `active: false`. (A *stale* lease can still report
+  `active: true` with an old `192.168.4.x` while the DUT actually can't DHCP — on
+  the device this looks like "connected to the AP but `wifi=0`, no `sta ip` line".)
+- On the Pi, `dmesg | grep err=-16` shows
+  `brcmf_cfg80211_add_iface: iface validation failed: err=-16` repeating (EBUSY,
+  one per failed AP-create attempt).
+
+**Cause:** NetworkManager auto-associated `wlan0` to a stored WiFi network (e.g. an
+office AP), so the radio is busy as a STA. This is **not** dnsmasq, regdomain, or
+firmware — auth and hostapd are fine, the radio is just taken.
+
+**Runtime fix** (frees the radio for the current session):
+
+```bash
+sudo rfkill unblock wifi
+sudo nmcli device disconnect wlan0      # bouncing the link is NOT enough — NM re-joins
+```
+
+Then re-run `enter-portal` / `ap_start`.
+
+**Persistent fix** (survives a cold boot): disable autoconnect on the offending
+`wlan0` profile at the **netplan** layer, because NetworkManager regenerates its
+keyfiles from netplan at every boot (a bare `nmcli modify` gets wiped):
+
+```bash
+# in /etc/netplan/90-NM-<uuid>.yaml, under the wlan0 profile's NM passthrough:
+#   connection.autoconnect: "false"
+sudo netplan generate && sudo nmcli connection reload
+```
+
+The workbench drives `wlan0` itself (hostapd for AP, wpa_supplicant for
+`serial-interface` mode) and never needs NetworkManager to manage it — so leaving
+`wlan0` free for the instrument is always safe.
+
+> What the repo already does: `install.sh` installs
+> `/etc/NetworkManager/conf.d/10-workbench-wlan0.conf` marking `wlan0` as
+> NM-unmanaged (the robust, netplan-safe prevention), and
+> `wifi_controller._release_wlan()` also runs `nmcli device disconnect wlan0`
+> before each AP start. The manual `nmcli`/netplan steps above are only needed on a
+> box provisioned before those landed, or if you have deliberately handed `wlan0`
+> back to NetworkManager (e.g. to keep it as a backup LAN) and want to keep the
+> profile while disabling its autoconnect.
+
 ## Related
 
 - [Monitor output and read logs](monitor-output-and-logs.md)

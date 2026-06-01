@@ -72,6 +72,31 @@ if [ "$UPDATE_ONLY" = false ]; then
     systemctl mask hostapd 2>/dev/null || true
     systemctl disable --now dnsmasq 2>/dev/null || true
     systemctl disable --now mosquitto 2>/dev/null || true
+
+    # Keep NetworkManager off wlan0 — it is the workbench's test radio, driven
+    # directly via hostapd (AP) and wpa_supplicant (STA / serial-interface mode),
+    # never via NM. The Pi has a single radio; if NM auto-associates wlan0 to a
+    # stored network on boot, hostapd cannot create the SoftAP and the driver
+    # rejects the second interface with err=-16 (EBUSY). A conf.d drop-in is
+    # netplan-safe: NM regenerates its connection keyfiles from netplan at boot,
+    # but it does not touch this file. (See docs/how-to-guides/run-wifi-tests.md.)
+    # Remove /etc/NetworkManager/conf.d/10-workbench-wlan0.conf to undo.
+    if command -v nmcli >/dev/null 2>&1; then
+        echo "Marking wlan0 as NetworkManager-unmanaged (workbench owns the radio)..."
+        mkdir -p /etc/NetworkManager/conf.d
+        cat > /etc/NetworkManager/conf.d/10-workbench-wlan0.conf <<'EOF'
+# Installed by the Universal Embedded Workbench (rfc2217-portal).
+# wlan0 is the workbench's test radio, driven directly by hostapd (AP) and
+# wpa_supplicant (STA / serial-interface mode) — NetworkManager must not manage it,
+# or it will steal the single radio on boot and the SoftAP fails with err=-16.
+# Delete this file to hand wlan0 back to NetworkManager.
+[keyfile]
+unmanaged-devices=interface-name:wlan0
+EOF
+        # Apply now without bouncing other interfaces (eth0 is the management link).
+        # Best-effort — the drop-in takes full effect on the next NM reload / reboot.
+        nmcli device set wlan0 managed no 2>/dev/null || true
+    fi
 fi
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_event.h"
+#include "esp_app_desc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_store.h"
@@ -10,8 +11,6 @@
 #include "http_server.h"
 
 static const char *TAG = "app_main";
-
-#define FW_VERSION "0.1.0"
 
 static void heartbeat_task(void *arg)
 {
@@ -25,7 +24,8 @@ static void heartbeat_task(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== Workbench Test Firmware v%s ===", FW_VERSION);
+    ESP_LOGI(TAG, "=== Workbench Test Firmware v%s ===",
+             esp_app_get_description()->version);
 
     /* 1. NVS */
     nvs_store_init();

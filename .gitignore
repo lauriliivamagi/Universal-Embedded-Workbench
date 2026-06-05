@@ -15,3 +15,5 @@ sdkconfig
 sdkconfig.old
 
 superpowers/
+.firecrawl/
+tmp/

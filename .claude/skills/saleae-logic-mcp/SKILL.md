@@ -68,6 +68,14 @@ blocks until the trigger fires and the post-trigger window completes.
 
 ## 3. Decode a protocol
 
+> ⚠️ **`add_analyzer` is broken on this bench (verified 2026-06).** The MCP bridge coerces numeric
+> `settings` values to strings, so every channel-based analyzer is rejected with
+> `Invalid value type for analyzer setting "<channel>", expected number` — *even the documented SPI
+> example below*. Capture and raw export work fine; only `add_analyzer` is affected. **To decode a
+> protocol, use the `saleae-logic-python` skill** (gRPC automation on 10430), whose client sends
+> correctly-typed settings. Workaround if you must stay in MCP: `export_raw_data_csv` and decode the
+> transitions yourself.
+
 Add a built-in analyzer **after** the capture has data:
 
 ```
@@ -102,5 +110,7 @@ The `directory` must already exist and is a folder (no filename); it produces `d
 - Pass `captureId` to `wait_capture` / `stop_capture` / `save_capture` / `close_capture` — omitting it
   errors with "should have required property 'captureId'".
 - Read each error message closely — API-misuse errors list the valid options inline.
+- **`add_analyzer` rejects all channel settings here** (numbers arrive as strings — see §3). Decode via
+  the `saleae-logic-python` skill instead.
 
 See [references/reference.md](references/reference.md) for the full tool table with exact argument schemas.

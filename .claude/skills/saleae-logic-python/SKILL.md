@@ -24,8 +24,16 @@ A capture must be `wait()`-ed (timed/trigger) or `stop()`-ed (manual) before you
 ## Setup
 
 ```bash
-pip install logic2-automation   # needs Logic 2 ≥ 2.4.0, Python 3.8 / 3.9 / 3.10
+pip install logic2-automation   # needs Logic 2 ≥ 2.4.0; docs say Python 3.8–3.10
 ```
+
+> Verified 2026-06: `logic2-automation 1.0.11` installs and runs fine on **Python 3.14** too
+> (grpcio 1.81 ships cp314 wheels) — the 3.8–3.10 ceiling in the docs is stale. A throwaway venv
+> (`python3 -m venv … && …/pip install logic2-automation`) is enough.
+>
+> **This skill is the working path for protocol decode on this bench.** The `saleae-logic-mcp`
+> route can capture but its `add_analyzer` rejects all channel settings (numbers → strings); the
+> Python client sends correct types, so decoding works here.
 
 Enable the gRPC server: Logic 2 → **Settings > Automation > Enable Automation Server** (port
 `10430`), or launch with the flag: `./Logic-2.4.44.AppImage --automation [--automationPort N]`.
@@ -56,6 +64,60 @@ with automation.Manager.connect(port=10430) as manager:
         cap.save_capture(filepath="/tmp/cap.sal")
     # capture auto-closes here
 ```
+
+## Async Serial (UART) analyzer — verified settings
+
+These `add_analyzer("Async Serial", …)` settings were accepted first try (Logic 2 v2.4.44) and
+decoded a 115200 8N1 ESP32 UART cleanly. Channel keys are real ints — that's exactly what the MCP
+bridge mangles, which is why decode has to go through Python:
+
+```python
+uart = cap.add_analyzer("Async Serial", label="rx", settings={
+    "Input Channel": 1,                                       # int
+    "Bit Rate (Bits/s)": 115200,                             # int
+    "Bits per Frame": "8 Bits per Transfer (Standard)",
+    "Stop Bits": "1 Stop Bit (Standard)",
+    "Parity Bit": "No Parity Bit (Standard)",
+    "Significant Bit": "Least Significant Bit Sent First (Standard)",
+    "Signal inversion": "Non Inverted (Standard)",
+    "Mode": "Normal",
+})
+cap.export_data_table(filepath="/tmp/uart.csv", analyzers=[uart])
+```
+
+`export_data_table` emits one row per decoded frame (`name,type,start_time,duration,data`), one
+character per row — reassemble by concatenating the `data` column in time order. An idle UART line
+sits HIGH; an all-LOW capture means a missing/wrong ground, not a decode problem.
+
+> **Decode binary from the analyzer, not the data-table text.** The `data` column renders control
+> bytes lossily (e.g. `0x04`/`0x03` both show as `.`, `0x00` as `\0`), so it's fine for ASCII but
+> unusable for binary protocol frames. To recover exact bytes: keep the data table only for the
+> per-byte **`start_time`** (authoritative framing), then re-sample the byte value from the raw
+> waveform at `start_time + bit*(1.5 + b)` for b in 0..7 (`bit = 1/baud`). This beats a hand-rolled
+> raw decoder, which mis-frames by re-triggering on every high→low edge instead of skipping a full
+> 10-bit frame.
+
+## Glitch filter — clean up reset spikes
+
+Capturing across a DUT reset (e.g. `POST /api/serial/reset` to record a boot command burst) picks
+up sub-microsecond settling spikes on the lines that a raw decoder reads as phantom start bits. Add
+a **glitch filter** in the device config — it's a first-class field in the automation API, not just
+the UI toggle:
+
+```python
+dev = automation.LogicDeviceConfiguration(
+    enabled_digital_channels=[0, 1],
+    digital_sample_rate=16_000_000,
+    glitch_filters=[
+        automation.GlitchFilterEntry(channel_index=0, pulse_width_seconds=1e-6),
+        automation.GlitchFilterEntry(channel_index=1, pulse_width_seconds=1e-6),
+    ])
+```
+
+Size the pulse width **well under one bit period**: at 115200 baud a bit is **8.68 µs**, so `1e-6`
+(1 µs) removes reset spikes without eating real bits. Verified to take raw-decodable frames from 0 to
+clean. Note it only helps glitches — it does **not** fix a hand-decoder's framing bug (see the box
+above); pair it with the Logic analyzer's own decoder.
 
 ## Capture modes
 
@@ -99,7 +161,7 @@ Or `automation.Manager.launch()` to start Logic 2 from the script and shut it do
   (1.8–3.6 V / 3.6–5.0 V); a scalar like `3.3` is rejected. The default covers 3.3 V logic. Other
   devices accept a scalar.
 - `add_analyzer` name + every `settings` key/value must match the Logic 2 **Add Analyzer** dialog
-  exactly. Only SPI settings are documented — read I²C/UART off the UI first.
+  exactly. SPI and Async Serial (UART) settings are given above — read other analyzers off the UI first.
 - `export_raw_data_csv`/`_binary` take a `directory` that must already exist (folder, no filename);
   they emit `digital.csv`/`analog.csv` (or one `.bin` per channel).
 - protobuf/grpc version clashes → `pip install --force-reinstall logic2-automation`.

@@ -7,6 +7,10 @@
     "esp-component-registry": {
       "type": "http",
       "url": "https://components.espressif.com/mcp"
+    },
+    "logic2": {
+      "type": "http",
+      "url": "http://127.0.0.1:10530"
     }
   }
 }

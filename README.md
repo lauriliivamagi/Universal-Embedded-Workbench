@@ -48,7 +48,7 @@ rm -rf /tmp/uew
 
 `.claude/skills/` is project-scoped (loaded only for the current repo). Use `~/.claude/skills/` instead to install globally for all projects on the machine.
 
-This installs twelve skills:
+This installs fourteen skills:
 
 | Skill | Purpose |
 |-------|---------|
@@ -64,6 +64,10 @@ This installs twelve skills:
 | `workbench-integration` | One-shot integration of a project with the workbench (UDP logging, WiFi prov, OTA, BLE) |
 | `signal-generator` | Si5351 / GPCLK + PE4302 RF source — carrier, Morse, retune, attenuation |
 | `fsd-writer` | Functional Specification Document generator with reference templates |
+| `saleae-logic-mcp` | Saleae logic analyzer via the Logic 2 MCP server (capture / decode / export) — laptop-hosted |
+| `saleae-logic-python` | Saleae logic analyzer via the `logic2-automation` Python/gRPC API — laptop-hosted |
+
+The two `saleae-logic-*` skills are the exception to the Pi rule: the Saleae plugs into the laptop and Logic 2 runs on the laptop, so they talk to `127.0.0.1` (MCP `:10530`, gRPC `:10430`), not the Pi.
 
 Most `workbench-*` skills assume the Pi is reachable at `pi4b.local` (or the IP in `SERIAL_PI`). Override `SERIAL_PI` in your shell or devcontainer, or edit the URLs inside any skill that doesn't match your network.
 

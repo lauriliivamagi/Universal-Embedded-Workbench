@@ -9,7 +9,11 @@
 
 This directory is **pinned**: Claude Code auto-discovers skills at exactly `.claude/skills/`,
 so it cannot be relocated. Twelve skills drive the workbench (PlatformIO/ESP-IDF lifecycle,
-test harness, debug, WiFi/BLE/MQTT, signal generator, integration, FSD writer). See the
+test harness, debug, WiFi/BLE/MQTT, signal generator, integration, FSD writer). Two more
+(`saleae-logic-mcp`, `saleae-logic-python`) are an **exception** to the authority/Pi rules
+above: they drive a **laptop-hosted** Saleae logic analyzer through Logic 2's own MCP
+(`127.0.0.1:10530`) and `logic2-automation` gRPC (`127.0.0.1:10430`) interfaces, so their
+source of truth is Saleae's API, not this repo's `pi/` + `docs/`. See the
 table in the repo-root [`README.md`](../../README.md#skills-only-installation) for the full
 list, and [`../../AUTHORITY.md`](../../AUTHORITY.md) for where skills sit in the source-of-truth
 hierarchy.

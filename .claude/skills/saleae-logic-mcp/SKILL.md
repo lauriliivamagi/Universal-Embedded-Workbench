@@ -68,27 +68,41 @@ blocks until the trigger fires and the post-trigger window completes.
 
 ## 3. Decode a protocol
 
-> ⚠️ **`add_analyzer` is broken on this bench (verified 2026-06).** The MCP bridge coerces numeric
-> `settings` values to strings, so every channel-based analyzer is rejected with
-> `Invalid value type for analyzer setting "<channel>", expected number` — *even the documented SPI
-> example below*. Capture and raw export work fine; only `add_analyzer` is affected. **To decode a
-> protocol, use the `saleae-logic-python` skill** (gRPC automation on 10430), whose client sends
-> correctly-typed settings. Workaround if you must stay in MCP: `export_raw_data_csv` and decode the
-> transitions yourself.
+> ⚠️ **MCP `settings` values are tagged-union objects, not bare scalars (verified 2026-06).** Each
+> value must be wrapped: `{"numberValue": N}`, `{"stringValue": "..."}`, or `{"boolValue": true}`.
+> Passing a bare `0` / `"..."` (the form the **gRPC/Python** API uses) makes the server reply with the
+> misleading `Invalid value type for analyzer setting "<name>", expected number`. This MCP↔Python
+> encoding difference is the #1 gotcha — get it right and `add_analyzer` works fine here on the Logic16.
 
 Add a built-in analyzer **after** the capture has data:
 
 ```
 add_analyzer { "captureId": 3, "analyzerName": "SPI", "analyzerLabel": "spi0",
-  "settings": { "MISO": 0, "Clock": 1, "Enable": 2, "Bits per Transfer": "8 Bits per Transfer (Standard)" } }
+  "settings": {
+    "MISO":  {"numberValue": 0},
+    "Clock": {"numberValue": 1},
+    "Enable":{"numberValue": 2},
+    "Bits per Transfer": {"stringValue": "8 Bits per Transfer (Standard)"}
+  } }
 → {"analyzerId": <n>}
 
 export_data_table_csv { "captureId": 3, "filepath": "/tmp/spi.csv", "analyzers": [<analyzerId>] }
 ```
 
-`analyzerName` and every key/value in `settings` must match the Logic 2 **Add Analyzer** dialog
-**exactly** (capitalization, spacing, the full option string). Only SPI settings are documented —
-read I²C/UART/other settings off the UI before scripting them.
+`analyzerName` and every setting key + the value inside the wrapper must match the Logic 2 **Add
+Analyzer** dialog **exactly** (capitalization, spacing, the full option string). Verified
+**Async Serial (UART)** settings — note each value is wrapped:
+
+```
+"settings": {
+  "Input Channel": {"numberValue": 1}, "Bit Rate (Bits/s)": {"numberValue": 115200},
+  "Bits per Frame": {"stringValue": "8 Bits per Transfer (Standard)"},
+  "Stop Bits": {"stringValue": "1 Stop Bit (Standard)"},
+  "Parity Bit": {"stringValue": "No Parity Bit (Standard)"},
+  "Significant Bit": {"stringValue": "Least Significant Bit Sent First (Standard)"},
+  "Signal inversion": {"stringValue": "Non Inverted (Standard)"}, "Mode": {"stringValue": "Normal"}
+}
+```
 
 ## 4. Export raw samples
 
@@ -110,7 +124,7 @@ The `directory` must already exist and is a folder (no filename); it produces `d
 - Pass `captureId` to `wait_capture` / `stop_capture` / `save_capture` / `close_capture` — omitting it
   errors with "should have required property 'captureId'".
 - Read each error message closely — API-misuse errors list the valid options inline.
-- **`add_analyzer` rejects all channel settings here** (numbers arrive as strings — see §3). Decode via
-  the `saleae-logic-python` skill instead.
+- **`add_analyzer` settings must be wrapped** as `{"numberValue"|"stringValue"|"boolValue": …}`, unlike
+  the bare values the Python API uses — bare values give a misleading `expected number` error (see §3).
 
 See [references/reference.md](references/reference.md) for the full tool table with exact argument schemas.

@@ -31,9 +31,10 @@ pip install logic2-automation   # needs Logic 2 ≥ 2.4.0; docs say Python 3.8�
 > (grpcio 1.81 ships cp314 wheels) — the 3.8–3.10 ceiling in the docs is stale. A throwaway venv
 > (`python3 -m venv … && …/pip install logic2-automation`) is enough.
 >
-> **This skill is the working path for protocol decode on this bench.** The `saleae-logic-mcp`
-> route can capture but its `add_analyzer` rejects all channel settings (numbers → strings); the
-> Python client sends correct types, so decoding works here.
+> **Settings format differs from MCP.** This Python/gRPC API takes **bare** setting values
+> (`settings={"MISO": 0, "Bits per Transfer": "8 Bits…"}`). The `saleae-logic-mcp` route takes the
+> same settings but each value **wrapped** as `{"numberValue": 0}` / `{"stringValue": "…"}`. Both
+> decode fine; don't copy bare values into an MCP call (you'll get a misleading `expected number`).
 
 Enable the gRPC server: Logic 2 → **Settings > Automation > Enable Automation Server** (port
 `10430`), or launch with the flag: `./Logic-2.4.44.AppImage --automation [--automationPort N]`.
@@ -68,8 +69,8 @@ with automation.Manager.connect(port=10430) as manager:
 ## Async Serial (UART) analyzer — verified settings
 
 These `add_analyzer("Async Serial", …)` settings were accepted first try (Logic 2 v2.4.44) and
-decoded a 115200 8N1 ESP32 UART cleanly. Channel keys are real ints — that's exactly what the MCP
-bridge mangles, which is why decode has to go through Python:
+decoded a 115200 8N1 ESP32 UART cleanly. Values are bare here (Python API); for MCP, wrap each as
+`{"numberValue": …}` / `{"stringValue": …}`:
 
 ```python
 uart = cap.add_analyzer("Async Serial", label="rx", settings={

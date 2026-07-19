@@ -62,6 +62,10 @@ STATE_DEBUGGING     = "debugging"
 
 # Module-level state
 slots: dict[str, dict] = {}
+# Guards structural mutation of `slots` (dynamic-slot creation + port allocation)
+# against concurrent hotplug threads. Reentrant so the creation helper can call
+# _next_available_port while holding it.
+_slots_lock = threading.RLock()
 seq_counter: int = 0
 host_ip: str = "127.0.0.1"  # refreshed periodically; see _refresh_host_ip()
 hostname: str = "localhost"
@@ -134,6 +138,11 @@ def _safe_firmware_path(project, filename):
 
 # Serial buffer size — how many lines each slot's ring buffer keeps
 SERIAL_BUF_MAXLEN = 1000
+
+# Request body caps. The portal reads bodies into RAM on a memory-constrained
+# Pi, so an unbounded Content-Length is a trivial OOM-kill of the root process.
+MAX_JSON_BODY = 1 * 1024 * 1024        # 1 MB — control-plane JSON is tiny
+MAX_UPLOAD = 64 * 1024 * 1024          # 64 MB — firmware multipart (bin + OTA)
 
 
 
@@ -542,8 +551,12 @@ def _find_fixed_slot_for_key(slot_key: str) -> dict | None:
 
 
 def _next_available_port(base: int, used_attr: str) -> int:
-    """Find the next available port starting from base."""
-    used = {s.get(used_attr) for s in slots.values() if s.get(used_attr)}
+    """Find the next available port starting from base.
+
+    Call under _slots_lock when the result will be assigned to a new slot —
+    otherwise two concurrent hotplug adds can pick the same port. The
+    list() snapshot also avoids "dict changed size during iteration"."""
+    used = {s.get(used_attr) for s in list(slots.values()) if s.get(used_attr)}
     port = base
     while port in used:
         port += 1
@@ -584,6 +597,7 @@ def _make_slot(slot_key: str, label: str = None, tcp_port: int = None,
         "present": False,
         "running": False,
         "pid": None,
+        "_proc": None,  # Popen handle for the proxy, so it can be reaped (no zombies)
         "devnode": None,
         "_devnodes": {},  # slot_key → devnode for all active devices on this slot
         "seq": 0,
@@ -600,6 +614,11 @@ def _make_slot(slot_key: str, label: str = None, tcp_port: int = None,
         "_jtag_slot": None,  # slot label providing JTAG (own or probe)
         "_serial_buf": collections.deque(maxlen=SERIAL_BUF_MAXLEN),
         "_lock": threading.Lock(),
+        # Serializes long, device-exclusive operations (flash, reset) on this
+        # slot. Distinct from _lock (short bookkeeping): held for the whole
+        # esptool run, which happens outside _lock, so two concurrent flashes
+        # can't drive the same devnode at once.
+        "_op_lock": threading.Lock(),
     }
 
 
@@ -759,6 +778,7 @@ def start_proxy(slot: dict) -> bool:
     if proc.poll() is not None:
         slot["last_error"] = f"Proxy exited immediately (code {proc.returncode})"
         print(f"[portal] {label}: {slot['last_error']}", flush=True)
+        proc.wait()  # already dead — reap so it doesn't linger as a zombie
         return False
 
     # Wait up to 2 s for port to be listening
@@ -766,6 +786,7 @@ def start_proxy(slot: dict) -> bool:
         if is_port_listening(tcp_port):
             slot["running"] = True
             slot["pid"] = proc.pid
+            slot["_proc"] = proc  # keep the handle so stop_proxy can reap it
             slot["last_error"] = None
             slot["url"] = f"rfc2217://{host_ip}:{tcp_port}"
             slot["state"] = STATE_IDLE
@@ -776,8 +797,12 @@ def start_proxy(slot: dict) -> bool:
             return True
         time.sleep(0.1)
 
-    # Port never came up — kill the process
+    # Port never came up — kill the process and reap it
     _stop_pid(proc.pid)
+    try:
+        proc.wait(timeout=5)
+    except Exception:
+        pass
     slot["last_error"] = "Proxy started but port not listening"
     print(f"[portal] {label}: {slot['last_error']}", flush=True)
     return False
@@ -807,6 +832,16 @@ def stop_proxy(slot: dict) -> bool:
     if pid and _is_process_alive(pid):
         print(f"[portal] {label}: stopping proxy (pid {pid})", flush=True)
         _stop_pid(pid)
+    # Reap the child so a killed proxy doesn't linger as a zombie (kill(pid, 0)
+    # in _is_process_alive returns True for zombies, so health checks would
+    # otherwise misreport a dead-but-unreaped proxy as alive).
+    proc = slot.get("_proc")
+    if proc is not None:
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            pass
+        slot["_proc"] = None
     slot["running"] = False
     slot["pid"] = None
     slot["url"] = None
@@ -815,8 +850,19 @@ def stop_proxy(slot: dict) -> bool:
 
 
 def _make_dynamic_slot(slot_key: str) -> dict:
-    """Create a fully-configured slot for a newly discovered device."""
-    return _make_slot(slot_key=slot_key)
+    """Create, register, and return a slot for a newly discovered device.
+
+    Atomic and idempotent under _slots_lock: port allocation and insertion
+    happen as one critical section, so two concurrent hotplug adds for
+    different keys can't assign the same TCP/GDB port, and a duplicate add for
+    the same key returns the existing slot instead of clobbering it."""
+    with _slots_lock:
+        existing = slots.get(slot_key)
+        if existing is not None:
+            return existing
+        slot = _make_slot(slot_key=slot_key)
+        slots[slot_key] = slot
+        return slot
 
 
 def scan_existing_devices():
@@ -864,11 +910,8 @@ def scan_existing_devices():
         fixed = _find_fixed_slot_for_key(slot_key)
         if fixed:
             slot = fixed
-        elif slot_key not in slots:
-            slots[slot_key] = _make_dynamic_slot(slot_key)
-            slot = slots[slot_key]
         else:
-            slot = slots[slot_key]
+            slot = _make_dynamic_slot(slot_key)  # atomic get-or-create
 
         slot["_devnodes"][slot_key] = devnode
         slot["present"] = True
@@ -943,9 +986,15 @@ def scan_existing_devices():
 def _refresh_slot_health(slot: dict):
     """Check that a slot's proxy is still alive; mark dead if not."""
     if slot["running"] and slot["pid"]:
-        if not _is_process_alive(slot["pid"]):
+        proc = slot.get("_proc")
+        # Prefer Popen.poll(): it both tests liveness and reaps the child if it
+        # died. _is_process_alive (kill -0) returns True for an unreaped zombie,
+        # so on its own it would never notice a self-exited proxy.
+        died = proc.poll() is not None if proc is not None else not _is_process_alive(slot["pid"])
+        if died:
             slot["running"] = False
             slot["pid"] = None
+            slot["_proc"] = None
             slot["url"] = None
             slot["last_error"] = "Process died"
             slot["state"] = STATE_IDLE if slot["present"] else STATE_ABSENT
@@ -1162,8 +1211,20 @@ def _read_serial_lines(ser, pattern: str | None, timeout: float) -> tuple[list[s
 
 
 def serial_reset(slot: dict) -> dict:
-    """FR-008: Reset device via DTR/RTS.  Stops proxy, opens direct serial,
-    sends reset pulse, reads initial boot output, restarts proxy.
+    """FR-008: Reset device via DTR/RTS, serialized per slot (shares _op_lock
+    with flash so a reset and a flash can't drive the devnode at once)."""
+    label = slot["label"]
+    if not slot["_op_lock"].acquire(blocking=False):
+        return {"ok": False, "error": f"{label}: another operation in progress"}
+    try:
+        return _serial_reset_impl(slot)
+    finally:
+        slot["_op_lock"].release()
+
+
+def _serial_reset_impl(slot: dict) -> dict:
+    """Stops proxy, opens direct serial, sends reset pulse, reads initial boot
+    output, restarts proxy.
 
     Returns {"ok": True/False, "output": [...], "error": "..."}.
     """
@@ -1227,6 +1288,23 @@ def serial_reset(slot: dict) -> dict:
 
 def flash_device(slot: dict, files: dict, esptool_args: list[str],
                  timeout_s: float = 300.0) -> dict:
+    """Flash a device on *slot*, serialized per slot.
+
+    Guards the actual flash with the slot's _op_lock so two concurrent
+    POST /api/flash (ThreadingHTTPServer serves them in parallel) can't both
+    drive the same devnode — the second is rejected rather than racing esptool
+    and the proxy start/stop bookkeeping. serial_reset shares this lock."""
+    label = slot["label"]
+    if not slot["_op_lock"].acquire(blocking=False):
+        return {"ok": False, "error": f"{label}: another operation in progress"}
+    try:
+        return _flash_device_impl(slot, files, esptool_args, timeout_s)
+    finally:
+        slot["_op_lock"].release()
+
+
+def _flash_device_impl(slot: dict, files: dict, esptool_args: list[str],
+                       timeout_s: float = 300.0) -> dict:
     """Flash a device on *slot* via esptool.
 
     Stops the RFC2217 proxy so esptool can claim the local devnode, writes
@@ -1609,6 +1687,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             return None
+        if length > MAX_JSON_BODY:
+            # Refuse before reading — an oversized control body is either a bug
+            # or an OOM attempt; treat as empty so callers return 400.
+            return None
         return json.loads(self.rfile.read(length))
 
     # -- routes --
@@ -1816,11 +1898,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         fixed = _find_fixed_slot_for_key(slot_key)
         if fixed:
             slot = fixed
-        elif slot_key not in slots:
-            slots[slot_key] = _make_dynamic_slot(slot_key)
-            slot = slots[slot_key]
         else:
-            slot = slots[slot_key]
+            slot = _make_dynamic_slot(slot_key)  # atomic get-or-create
         lock = slot["_lock"]
 
         # Update event bookkeeping (always, even for unknown slots)
@@ -2655,6 +2734,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if length == 0:
             self._send_json({"ok": False, "error": "empty body"}, 400)
             return
+        if length > MAX_UPLOAD:
+            self._send_json({"ok": False, "error": f"upload too large (>{MAX_UPLOAD} bytes)"}, 413)
+            return
         body = self.rfile.read(length)
         boundary_bytes = boundary.encode()
         parts_raw = body.split(b"--" + boundary_bytes)
@@ -2731,6 +2813,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             self._send_json({"ok": False, "error": "empty body"}, 400)
+            return
+        if length > MAX_UPLOAD:
+            self._send_json({"ok": False, "error": f"upload too large (>{MAX_UPLOAD} bytes)"}, 413)
             return
         body = self.rfile.read(length)
         boundary_bytes = boundary.encode()

@@ -73,6 +73,22 @@ _mode_ssid = ""  # SSID when in serial-interface mode
 _MODE_DISABLED_ERR = "WiFi testing disabled (Serial Interface mode)"
 
 
+def _validate_ssid_pass(ssid, password):
+    """Reject SSID/passphrase values that would inject config directives.
+
+    ssid/password land verbatim in hostapd.conf and (on the wpa_passphrase
+    fallback) wpa_supplicant.conf, so a newline or NUL lets a caller add
+    arbitrary directives. Also enforce the 802.11 length limits, which the
+    downstream tools require anyway. Raises ValueError on bad input."""
+    for label, value in (("ssid", ssid), ("password", password)):
+        if value and any(c in value for c in ("\n", "\r", "\0")):
+            raise ValueError(f"{label} contains illegal control characters")
+    if not ssid or len(ssid.encode("utf-8")) > 32:
+        raise ValueError("ssid must be 1..32 bytes")
+    if password and not (8 <= len(password.encode("utf-8")) <= 63):
+        raise ValueError("password must be 8..63 bytes (WPA2)")
+
+
 # ---------------------------------------------------------------------------
 # Mode management
 # ---------------------------------------------------------------------------
@@ -189,11 +205,17 @@ def _release_wlan():
     # Release wlan0 from NetworkManager first. The Pi has a single radio; if NM is
     # holding wlan0 as a station (it auto-associates to stored networks on boot),
     # hostapd cannot create the SoftAP and the driver rejects the second interface
-    # with err=-16 (EBUSY). Bouncing the link below is NOT enough on its own — NM
-    # re-associates as soon as the link comes back up. (Cold-boot persistence still
-    # needs autoconnect disabled at the netplan layer; see
-    # docs/how-to-guides/run-wifi-tests.md.)
+    # with err=-16 (EBUSY). A plain `disconnect` is NOT enough — NM re-associates
+    # as soon as the link comes back up — so we also take wlan0 out of NM
+    # management entirely (`managed no`), the runtime equivalent of the install-time
+    # netplan/NM drop-in. The workbench always drives wlan0 via hostapd/
+    # wpa_supplicant directly (serial-interface mode included), so NM never needs
+    # it. See docs/how-to-guides/run-wifi-tests.md.
     try:
+        subprocess.run(
+            ["nmcli", "device", "set", WLAN_IF, "managed", "no"],
+            capture_output=True, timeout=5, check=False,
+        )
         subprocess.run(
             ["nmcli", "device", "disconnect", WLAN_IF],
             capture_output=True, timeout=5, check=False,
@@ -249,6 +271,7 @@ def ap_start(ssid, password="", channel=6, dns_logging=False):
     global _ap_hostapd_proc, _ap_dnsmasq_proc
 
     _check_wifi_testing_mode()
+    _validate_ssid_pass(ssid, password)
     with _lock:
         # Stop anything running first
         _stop_all_unlocked()
@@ -407,6 +430,7 @@ def sta_join(ssid, password="", timeout=15, _internal=False):
 
     if not _internal:
         _check_wifi_testing_mode()
+    _validate_ssid_pass(ssid, password)
     with _lock:
         # Save AP config so sta_leave can restore it
         if _ap_active:

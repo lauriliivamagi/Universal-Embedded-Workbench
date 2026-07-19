@@ -347,6 +347,20 @@ def start(slot_label: str, slot: dict, gdb_port: int, telnet_port: int,
             return {"ok": False,
                     "error": f"openocd failed to start: {output.strip()}"}
 
+        # Drain OpenOCD's stdout for the life of the session. It stays PIPE'd so
+        # the startup-failure path above can read diagnostics, but once running,
+        # OpenOCD is verbose and an undrained 64 KB pipe would block it (and hang
+        # the GDB session). A daemon reader discards the stream until EOF (proc
+        # exit / stop()).
+        def _drain(p=proc):
+            try:
+                for _ in iter(p.stdout.readline, ""):
+                    pass
+            except Exception:
+                pass
+
+        threading.Thread(target=_drain, daemon=True).start()
+
         _sessions[slot_label] = {
             "pid": proc.pid,
             "process": proc,

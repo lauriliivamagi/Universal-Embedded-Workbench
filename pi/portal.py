@@ -115,6 +115,23 @@ _beacon_shutdown = threading.Event()
 # OTA firmware repository — serve .bin files for ESP32 OTA updates
 FIRMWARE_DIR = os.environ.get("FIRMWARE_DIR", "/var/lib/rfc2217/firmware")
 
+
+def _safe_firmware_path(project, filename):
+    """Resolve FIRMWARE_DIR/<project>/<filename>, refusing anything that escapes
+    FIRMWARE_DIR. Returns the absolute path, or None if the inputs are empty or
+    would traverse out (via "..", a leading "/", or a symlink). The portal runs
+    as root, so an unchecked join here is arbitrary-file access — callers must
+    treat None as a 400."""
+    if not project or not filename:
+        return None
+    if "/" in project or "/" in filename or "\0" in project or "\0" in filename:
+        return None
+    base = os.path.realpath(FIRMWARE_DIR)
+    fpath = os.path.realpath(os.path.join(base, project, filename))
+    if fpath != base and not fpath.startswith(base + os.sep):
+        return None
+    return fpath
+
 # Serial buffer size — how many lines each slot's ring buffer keeps
 SERIAL_BUF_MAXLEN = 1000
 
@@ -1766,6 +1783,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _handle_get_info(self):
         _refresh_host_ip()
         self._send_json({
+            "ok": True,
             "host_ip": host_ip,
             "hostname": hostname,
             "slots_configured": sum(1 for s in slots.values() if s["tcp_port"] is not None),
@@ -2596,10 +2614,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         project = parts[2]
         filename = parts[3]
-        if ".." in project or ".." in filename or "/" in project or "/" in filename:
+        fpath = _safe_firmware_path(project, filename)
+        if fpath is None:
             self._send_json({"error": "path traversal not allowed"}, 400)
             return
-        fpath = os.path.join(FIRMWARE_DIR, project, filename)
         if not os.path.isfile(fpath):
             self._send_json({"error": "not found"}, 404)
             return
@@ -2668,12 +2686,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not project or file_data is None or not file_name:
             self._send_json({"ok": False, "error": "missing project or file"}, 400)
             return
-        if ".." in project or "/" in project or ".." in file_name or "/" in file_name:
+        fpath = _safe_firmware_path(project, file_name)
+        if fpath is None:
             self._send_json({"ok": False, "error": "path traversal not allowed"}, 400)
             return
-        proj_dir = os.path.join(FIRMWARE_DIR, project)
-        os.makedirs(proj_dir, exist_ok=True)
-        fpath = os.path.join(proj_dir, file_name)
+        os.makedirs(os.path.dirname(fpath), exist_ok=True)
         with open(fpath, "wb") as f:
             f.write(file_data)
         log_activity(f"firmware.upload({project}/{file_name}, {len(file_data)} bytes)", "ok")
@@ -2854,10 +2871,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not project or not filename:
             self._send_json({"ok": False, "error": "missing project or filename"}, 400)
             return
-        if ".." in project or ".." in filename:
+        fpath = _safe_firmware_path(project, filename)
+        if fpath is None:
             self._send_json({"ok": False, "error": "path traversal not allowed"}, 400)
             return
-        fpath = os.path.join(FIRMWARE_DIR, project, filename)
         if not os.path.isfile(fpath):
             self._send_json({"ok": False, "error": "not found"}, 404)
             return

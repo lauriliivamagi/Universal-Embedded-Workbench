@@ -309,12 +309,17 @@ class WorkbenchDriver:
         )
         return {k: v for k, v in result.items() if k != "ok"}
 
-    def enter_portal(self, slot: str = "SLOT2",
-                     resets: int = 3) -> dict:
-        """POST /api/enter-portal — starts background portal trigger."""
-        result = self._api_post(
-            "/api/enter-portal", {"slot": slot, "resets": resets}, timeout=10
-        )
+    def enter_portal(self, ssid: str, password: str = "",
+                     portal_ssid: str = "iOS-Keyboard-Setup",
+                     portal_ip: str = "192.168.4.1") -> dict:
+        """POST /api/enter-portal — join a device's captive-portal AP and submit
+        WiFi creds in the background. `ssid`/`password` are the credentials the
+        DUT should be provisioned with; `portal_ssid`/`portal_ip` identify the
+        DUT's own AP. Returns immediately with {message}; the join runs async."""
+        body: dict = {"ssid": ssid, "portal_ssid": portal_ssid, "portal_ip": portal_ip}
+        if password:
+            body["password"] = password
+        result = self._api_post("/api/enter-portal", body, timeout=10)
         return {k: v for k, v in result.items() if k != "ok"}
 
     def wait_for_state(self, slot_label: str, state: str,

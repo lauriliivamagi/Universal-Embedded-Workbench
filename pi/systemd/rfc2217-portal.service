@@ -3,6 +3,12 @@ Description=RFC2217 Serial Portal
 After=network.target
 
 [Service]
+# Runs as root, unhardened, and the API on :8080 has no auth by design — this is
+# a trusted-LAN lab instrument. root is required for /dev/mem (GPCLK + low-level
+# GPIO); the open API is an accepted trust boundary, not an oversight. Do not add
+# sandboxing/auth here expecting it to "just work" — see the rationale in
+# docs/explanation/architecture-overview.md (Security posture). Keep :8080 on a
+# trusted network; tunnel (SSH/VPN) for remote access.
 ExecStart=/usr/bin/python3 /usr/local/bin/rfc2217-portal
 Restart=on-failure
 User=root

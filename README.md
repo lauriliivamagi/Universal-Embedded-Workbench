@@ -516,7 +516,7 @@ curl -X POST http://pi4b.local:8080/api/siggen/stop
 
 ## API Reference
 
-All endpoints are served from `http://<pi-ip>:8080`. No authentication. All requests and responses use JSON (except the firmware upload/download which use multipart form-data and raw binary). Every response includes an `"ok": true|false` field; errors add `"error": "..."`.
+All endpoints are served from `http://<pi-ip>:8080`. **No authentication, authorization, or transport security** — every endpoint is open to anyone who can reach the port, and CORS is wide open. This is a deliberate trusted-LAN-lab posture, not an oversight: keep `:8080` on a network you trust and tunnel (SSH/VPN) for remote access. See [Security posture](docs/explanation/architecture-overview.md#security-posture) for the full threat model and the two endpoints (`/api/flash`, `/api/wifi/http`) that make it consequential. All requests and responses use JSON (except the firmware upload/download which use multipart form-data and raw binary). Every response includes an `"ok": true|false` field; errors add `"error": "..."`.
 
 Sub-chapters:
 [1. Device Discovery](#1-device-discovery) · [2. Serial Management](#2-serial-management) · [3. GDB Debug](#3-gdb-debug) · [4. WiFi Instrument](#4-wifi-instrument) · [5. BLE Proxy](#5-ble-proxy) · [6. GPIO Control](#6-gpio-control) · [7. UDP Log](#7-udp-log) · [8. Firmware Repository](#8-firmware-repository) · [9. Signal Generator](#9-signal-generator) · [10. Test Progress](#10-test-progress) · [11. Human Interaction](#11-human-interaction) · [12. Activity Log](#12-activity-log)

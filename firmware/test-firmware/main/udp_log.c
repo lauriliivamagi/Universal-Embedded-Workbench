@@ -17,20 +17,37 @@ static MessageBufferHandle_t s_msg_buf;
 static struct sockaddr_in s_dest_addr;
 static vprintf_like_t s_orig_vprintf;
 
+/* Forward a literal (no-format-args) line to the original vprintf. Avoids
+   synthesising a bogus va_list for the error paths below. */
+static void udp_log_raw(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    s_orig_vprintf(fmt, ap);
+    va_end(ap);
+}
+
 static int udp_log_vprintf(const char *fmt, va_list args)
 {
+    /* Copy args before the serial vprintf consumes them: a va_list may only be
+       traversed once, so reusing `args` for vsnprintf below is undefined
+       behaviour (and differs between Xtensa and RISC-V ABIs). */
+    va_list args_copy;
+    va_copy(args_copy, args);
+
     /* Always print to serial */
     int ret = s_orig_vprintf(fmt, args);
 
     if (s_msg_buf) {
         char buf[MAX_LOG_LINE];
-        int len = vsnprintf(buf, sizeof(buf), fmt, args);
+        int len = vsnprintf(buf, sizeof(buf), fmt, args_copy);
         if (len > 0) {
             if (len >= (int)sizeof(buf)) len = sizeof(buf) - 1;
             /* Non-blocking send — drop if buffer full */
             xMessageBufferSendFromISR(s_msg_buf, buf, len, NULL);
         }
     }
+    va_end(args_copy);
     return ret;
 }
 
@@ -40,7 +57,7 @@ static void udp_sender_task(void *arg)
     if (sock < 0) {
         /* Can't use ESP_LOGE here — would recurse through our hook.
            Fall back to original vprintf. */
-        s_orig_vprintf("udp_log: failed to create socket\n", (va_list){0});
+        udp_log_raw("udp_log: failed to create socket\n");
         vTaskDelete(NULL);
         return;
     }

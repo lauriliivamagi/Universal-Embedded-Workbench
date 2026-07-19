@@ -87,20 +87,42 @@ class WorkbenchDriver:
 
     # ── HTTP helpers ─────────────────────────────────────────────────
 
+    @staticmethod
+    def _cmd_name(path: str) -> str:
+        return path.split("?", 1)[0].rstrip("/").split("/")[-1]
+
+    @staticmethod
+    def _http_error(cmd: str, e: "urllib.error.HTTPError") -> WorkbenchError:
+        """Turn a non-2xx response into a CommandError carrying the portal's
+        JSON error body. urllib raises HTTPError (a URLError subclass) for any
+        4xx/5xx, so without this a 404/409/503 with a real reason (unknown slot,
+        busy, siggen absent) would surface as a misleading CommandTimeout with
+        the body unread."""
+        try:
+            payload = json.loads(e.read())
+            if not isinstance(payload, dict):
+                payload = {"error": str(payload)}
+        except Exception:
+            payload = {}
+        payload.setdefault("error", f"HTTP {e.code} {e.reason}")
+        return CommandError(cmd, payload)
+
     def _api_get(self, path: str, timeout: float = 10) -> dict:
         """GET an API endpoint, return parsed JSON."""
         url = f"{self.base_url}{path}"
         req = urllib.request.Request(url)
+        cmd = self._cmd_name(path)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            raise self._http_error(cmd, e)
         except urllib.error.URLError as e:
             raise CommandTimeout(f"GET {path}: {e}")
         except Exception as e:
             raise CommandTimeout(f"GET {path}: {e}")
 
         if not data.get("ok", False):
-            cmd = path.split("/")[-1]
             raise CommandError(cmd, data)
         return data
 
@@ -114,16 +136,18 @@ class WorkbenchDriver:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
+        cmd = self._cmd_name(path)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            raise self._http_error(cmd, e)
         except urllib.error.URLError as e:
             raise CommandTimeout(f"POST {path}: {e}")
         except Exception as e:
             raise CommandTimeout(f"POST {path}: {e}")
 
         if not data.get("ok", False):
-            cmd = path.split("/")[-1]
             raise CommandError(cmd, data)
         return data
 

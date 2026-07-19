@@ -285,7 +285,11 @@ class TestHTTPRelay:
     def test_wt505_large_response(self, workbench, dut_url):
         """WT-505: Large HTTP response is relayed (up to ~3KB)."""
         resp = workbench.http_get(f"{dut_url}/")
-        assert isinstance(resp.text, str)
+        # The relay must deliver the DUT's real response, not swallow/truncate
+        # it: a genuine 200 with a non-empty body (isinstance str is always
+        # true and tested nothing).
+        assert resp.status_code == 200, f"relay returned {resp.status_code}"
+        assert len(resp.content) > 0, "relayed body was empty"
 
     def test_wt506_http_via_sta_mode(self, workbench):
         """WT-506: HTTP relay works in STA mode."""
@@ -637,10 +641,13 @@ class TestAutoDebug:
 
     @requires_dut
     def test_wt1709_auto_debug_skipped_during_flapping(self, workbench):
-        """WT-1709: Auto-debug is not attempted when slot is flapping."""
-        # We can only verify the logic exists — triggering real flapping
-        # requires rapid USB connect/disconnect which we can't do remotely.
-        # Instead, verify that debug_start on a non-present slot fails cleanly.
+        """WT-1709: smoke check only — NOT a real flapping test.
+
+        Triggering flapping needs rapid physical USB connect/disconnect, which
+        can't be done over the HTTP API, so this only verifies debug_stop leaves
+        all sessions cleanly stopped. The actual "auto-debug skipped while
+        flapping" guard is exercised by the portal's own flap logic, not here.
+        """
         workbench.debug_stop()
         time.sleep(1)
         status = workbench.debug_status()
@@ -1211,13 +1218,20 @@ class TestSerialArchitecture:
         slot = dev["label"]
 
         # The firmware prints "LOOP:" repeatedly — match from buffer
-        result = workbench.serial_monitor(slot, pattern="LOOP:", timeout=15)
+        pattern = "LOOP:"
+        result = workbench.serial_monitor(slot, pattern=pattern, timeout=15)
         if not result.get("matched"):
             # Firmware may not be running — try a boot message instead
-            result = workbench.serial_monitor(
-                slot, pattern="esp", timeout=10)
-        # At minimum, we should get some output lines
-        assert len(result.get("output", [])) >= 0
+            pattern = "esp"
+            result = workbench.serial_monitor(slot, pattern=pattern, timeout=10)
+        # The property under test: when serial_monitor reports a match, the
+        # returned line actually contains the requested pattern. (output is
+        # always a list; the old `len(...) >= 0` asserted nothing.)
+        assert isinstance(result.get("output", []), list)
+        if result.get("matched"):
+            assert pattern.lower() in result.get("line", "").lower(), (
+                f"matched=True but line {result.get('line')!r} lacks {pattern!r}"
+            )
 
     @requires_dut
     def test_wt1907_multi_slot_detection(self, workbench):

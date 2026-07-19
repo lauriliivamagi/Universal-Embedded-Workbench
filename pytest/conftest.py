@@ -58,10 +58,17 @@ def workbench(request):
     driver.open()
     driver.ping()
     yield driver
-    try:
-        driver.ap_stop()
-    except Exception:
-        pass
+    # Safety net: stop every stateful instrument, not just the AP. A test that
+    # asserts mid-flight leaves its instrument running (e.g. WT-1303 keys an RF
+    # carrier on 80m; a failed capture test leaves the sniffer AP+NAT+tcpdump
+    # up). Each stop is best-effort and independent so one failure doesn't skip
+    # the rest.
+    for stop in (driver.ap_stop, driver.siggen_stop,
+                 driver.sniffer_stop, driver.mqtt_stop, driver.debug_stop):
+        try:
+            stop()
+        except Exception:
+            pass
     driver.close()
 
 

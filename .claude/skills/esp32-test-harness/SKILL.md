@@ -79,46 +79,41 @@ Slots are mapped to physical USB hub ports via prefix matching. The portal auto-
 
 ### MQTT Broker (mosquitto on Pi)
 
-The Pi at pi4b.local runs a mosquitto MQTT broker. When the WiFi Tester AP is active, the broker is reachable by DUTs on the artificial network at **192.168.4.1:1883**.
+The Pi runs a mosquitto broker as a **portal-managed subprocess** (not a systemd
+service). It is configured with `allow_anonymous true` — **no username/password**.
+Control its lifecycle over the API, never over SSH:
 
 | Property | Value |
 |----------|-------|
 | Host (from DUT on AP) | 192.168.4.1 |
-| Host (from home network) | pi4b.local |
+| Host (from dev machine) | pi4b.local |
 | Port | 1883 |
-| Username | admin |
-| Password | admin |
+| Auth | anonymous (none) |
 
-**Service management (from dev machine):**
-```bash
-# Check status
-ssh pi@pi4b.local sudo systemctl status mosquitto
-
-# Restart
-ssh pi@pi4b.local sudo systemctl restart mosquitto
+**Lifecycle (HTTP API):**
+```python
+wt.mqtt_start()     # POST /api/mqtt/start — spawn the broker
+wt.mqtt_status()    # GET  /api/mqtt/status — {running, port}
+wt.mqtt_stop()      # POST /api/mqtt/stop
 ```
 
-**Quick tests (from dev machine on home network, or any host that can reach the AP):**
+**Quick tests (any host that can reach the broker):**
 ```bash
-# Publish a test message
-mosquitto_pub -h 192.168.4.1 -u admin -P admin -t test -m "hello"
-
-# Subscribe to all topics (verbose)
-mosquitto_sub -h 192.168.4.1 -u admin -P admin -t "#" -v
+mosquitto_pub -h 192.168.4.1 -t test -m "hello"
+mosquitto_sub -h 192.168.4.1 -t "#" -v
 ```
 
-**Configuring the DUT to use the Pi broker:**
-
-After WiFi provisioning (DUT connected to the WiFi Tester AP), send a `set_mqtt` command via MQTT to point the DUT at the Pi broker. This eliminates any dependency on home-network infrastructure.
+**Configuring the DUT to use the Pi broker** (DUT firmware that exposes an MQTT
+config endpoint — anonymous, so no credentials):
 
 ```python
-# Example: after DUT connects to test AP, configure its MQTT target
 resp = wt.http_post(f"http://{dut_ip}/api/mqtt",
-                     json_data={"host": "192.168.4.1", "port": 1883,
-                                "user": "admin", "password": "admin"})
+                     json_data={"host": "192.168.4.1", "port": 1883})
 ```
 
-All functional tests (Phase 1) run entirely on the artificial network — the WiFi Tester AP plus the Pi's mosquitto broker. There is no dependency on `private-2G` or any home-network MQTT broker.
+All functional tests (Phase 1) run entirely on the artificial network — the WiFi
+Tester AP plus the Pi's mosquitto broker. There is no dependency on any
+home-network MQTT broker. See the `workbench-mqtt` skill for the full API.
 
 ---
 
@@ -305,10 +300,12 @@ assert result["matched"]
 human.join()
 ```
 
-**Fallback B** — rapid resets (firmware with boot-counter portal trigger):
+**Fallback B** — let the Pi drive the DUT's captive portal. `enter_portal` runs
+in the background: the Pi (as a WiFi station) joins the DUT's own setup AP
+(`portal_ssid`) and POSTs the WiFi credentials to provision it onto `ssid`:
 ```python
-result = wt.enter_portal(SLOT, resets=3)
-wt.wait_for_state(SLOT, "idle", timeout=30)
+result = wt.enter_portal(ssid="TARGET-NET", password="secret",
+                         portal_ssid="DUT-Setup")   # returns {message}, async
 ```
 
 ### 4.2 Interact with captive portal (via WiFi Tester)

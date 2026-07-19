@@ -168,12 +168,12 @@ Standard test cases for ESP32 WiFi Access Point and captive portal provisioning.
 ### Workbench Commands
 
 ```bash
-# Enter captive portal via workbench
-curl -X POST http://pi4b.local:8080/api/wifi/enter-portal \
-  -H 'Content-Type: application/json' -d '{"slot": "slot-1"}'
-
-# Provision WiFi via workbench
-curl -X POST http://pi4b.local:8080/api/wifi/provision \
+# Provision a DUT via its captive portal, in one background call: the Pi (as a
+# WiFi station) joins the DUT's own setup AP (portal_ssid) and POSTs the WiFi
+# credentials to it. Endpoint is /api/enter-portal (NOT under /api/wifi/); there
+# is no separate /api/wifi/provision.
+curl -X POST http://pi4b.local:8080/api/enter-portal \
   -H 'Content-Type: application/json' \
-  -d '{"ssid": "TestNetwork", "password": "testpass123"}'
+  -d '{"ssid": "TestNetwork", "password": "testpass123",
+       "portal_ssid": "DUT-Setup", "portal_ip": "192.168.4.1"}'
 ```

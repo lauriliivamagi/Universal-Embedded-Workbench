@@ -55,13 +55,13 @@ pip install -r requirements-dev.txt
 pytest pytest/
 
 # Lint
-ruff check .
-mypy --strict .
+ruff check .          # enforced gate — must stay clean
+mypy --strict .        # aspirational — large pre-existing backlog, not yet clean
 ```
 
 ## Code Style
 
-- Python: ruff for linting, mypy strict, format with ruff
+- Python: ruff for linting (enforced, clean), format with ruff; `mypy --strict` is an aspirational goal with a pre-existing backlog
 - `snake_case` for functions and variables
 - REST API endpoints under `/api/` namespace
 - Slot-based identity: TCP ports tied to physical USB connectors, not devices
@@ -74,9 +74,10 @@ mypy --strict .
 ## Key Conventions
 
 - Always release GPIO pins after use: `gpio_set(pin, "z")`
-- Environment variable `SERIAL_PI=192.168.0.87` set in devcontainer
-- Deploy portal to Pi: `scp pi/portal.py pi4b@192.168.0.87:/tmp/portal.py && ssh pi4b@192.168.0.87 'sudo cp /tmp/portal.py /usr/local/bin/rfc2217-portal && sudo systemctl restart rfc2217-portal'`
-- Deploy debug_controller: `scp pi/debug_controller.py pi4b@192.168.0.87:/tmp/ && ssh pi4b@192.168.0.87 'sudo cp /tmp/debug_controller.py /usr/local/bin/debug_controller.py && sudo systemctl restart rfc2217-portal'`
+- Host: `pi4b.local` (user `pi4b`); `SERIAL_PI` in the devcontainer may pin the
+  Pi's current IP. Deploy commands below use the hostname — see `pi/CLAUDE.md`.
+- Deploy portal to Pi: `scp pi/portal.py pi4b@pi4b.local:/tmp/portal.py && ssh pi4b@pi4b.local 'sudo cp /tmp/portal.py /usr/local/bin/rfc2217-portal && sudo systemctl restart rfc2217-portal'`
+- Deploy debug_controller: `scp pi/debug_controller.py pi4b@pi4b.local:/tmp/ && ssh pi4b@pi4b.local 'sudo cp /tmp/debug_controller.py /usr/local/bin/debug_controller.py && sudo systemctl restart rfc2217-portal'`
 
 Functional behavior (slot auto-detect, flashing, GPIO API, signal generator, WiFi modes, GDB debug, RFC2217 semantics, etc.) lives in the code (`pi/`) and the operator docs (`docs/`); the FSD at `docs/spec/Embedded-Workbench-FSD.md` is the design-intent reference. Don't restate behavior here.
 

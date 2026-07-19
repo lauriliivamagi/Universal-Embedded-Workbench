@@ -185,15 +185,15 @@ curl -X POST http://pi4b.local:8080/api/serial/reset \
 | GET | `/api/info` | System info (host IP, hostname, slot counts) |
 | POST | `/api/flash` | Multipart upload + esptool flash on a slot (Pi-side) |
 | POST | `/api/serial/reset` | Hardware reset via DTR/RTS pulse, returns boot output |
-| POST | `/api/serial/recover` | Manual flap recovery trigger `{"slot": "slot-1"}` |
-| POST | `/api/serial/release` | Release GPIO after flashing, reboot into firmware `{"slot": "slot-1"}` |
+| POST | `/api/serial/recover` | Manual flap recovery trigger `{"slot": "SLOT1"}` |
+| POST | `/api/serial/release` | Release GPIO after flashing, reboot into firmware `{"slot": "SLOT1"}` |
 
 ### Serial reset
 
 ```bash
 curl -X POST http://pi4b.local:8080/api/serial/reset \
   -H 'Content-Type: application/json' \
-  -d '{"slot": "slot-1"}'
+  -d '{"slot": "SLOT1"}'
 ```
 
 ### Slot states
@@ -338,8 +338,8 @@ After portal reaches `download_mode`, upload and flash on the Pi:
 
 ```bash
 scp build/bootloader/bootloader.bin build/partition_table/partition-table.bin \
-    build/ota_data_initial.bin build/*.bin pi@pi4b.local:/tmp/
-ssh pi@pi4b.local "python3 -m esptool --chip esp32s3 --port /dev/ttyACM1 \
+    build/ota_data_initial.bin build/*.bin pi4b@pi4b.local:/tmp/
+ssh pi4b@pi4b.local "python3 -m esptool --chip esp32s3 --port /dev/ttyACM1 \
   write_flash --flash_mode dio --flash_size 4MB \
   0x0 /tmp/bootloader.bin 0x8000 /tmp/partition-table.bin \
   0xf000 /tmp/ota_data_initial.bin 0x20000 /tmp/firmware.bin"
@@ -349,7 +349,7 @@ Then release GPIO:
 
 ```bash
 curl -X POST http://pi4b.local:8080/api/serial/release \
-  -H 'Content-Type: application/json' -d '{"slot": "slot-1"}'
+  -H 'Content-Type: application/json' -d '{"slot": "SLOT1"}'
 ```
 
 ### Without GPIO
@@ -364,7 +364,7 @@ After 2 failed attempts, flash directly on the Pi with `esptool --before=usb_res
 
 ```bash
 curl -X POST http://pi4b.local:8080/api/serial/recover \
-  -H 'Content-Type: application/json' -d '{"slot": "slot-1"}'
+  -H 'Content-Type: application/json' -d '{"slot": "SLOT1"}'
 ```
 
 ## Troubleshooting

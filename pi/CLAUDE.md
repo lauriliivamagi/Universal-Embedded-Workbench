@@ -37,7 +37,8 @@ only, no system changes: `sudo bash install.sh --update`.
 
 ## Conventions
 
-- `ruff check .` + `mypy --strict .`; `snake_case`; REST endpoints under `/api/`.
+- `ruff check .` (enforced, clean); `mypy --strict .` aspirational (backlog);
+  `snake_case`; REST endpoints under `/api/`.
 - Slot identity = physical USB connector, not device. Ports: TCP `4000+idx`, GDB `3332+idx`,
   OpenOCD telnet `4443+idx`.
 - **Always release GPIO after use:** `gpio_set(pin, "z")` (high-Z input + pull-up).

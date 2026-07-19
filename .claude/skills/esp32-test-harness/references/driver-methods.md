@@ -13,7 +13,8 @@ wt.wait_for_state(SLOT, "idle", timeout=30)  # poll until state matches
 ```python
 wt.serial_reset(SLOT)                     # dict — reset DUT, returns boot output
 wt.serial_monitor(SLOT, pattern="WiFi connected", timeout=15)  # dict — wait for pattern
-wt.enter_portal(SLOT, resets=3)            # dict — trigger captive portal
+wt.enter_portal(ssid="TARGET-NET", password="secret",
+                portal_ssid="DUT-Setup")  # dict — Pi joins the DUT's portal AP and provisions it
 ```
 
 ## WiFi management

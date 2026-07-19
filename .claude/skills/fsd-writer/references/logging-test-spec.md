@@ -204,5 +204,5 @@ curl -X DELETE http://pi4b.local:8080/api/udplog
 # Serial monitor via workbench
 curl -X POST http://pi4b.local:8080/api/serial/monitor \
   -H 'Content-Type: application/json' \
-  -d '{"slot": "slot-1", "pattern": "ERROR\\|WARN", "timeout": 30}'
+  -d '{"slot": "SLOT1", "pattern": "ERROR\\|WARN", "timeout": 30}'
 ```

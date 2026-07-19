@@ -82,7 +82,7 @@ echo "reset halt" | nc pi4b.local 4446
 ```bash
 # Uses JTAG reset when debug session is active, DTR/RTS otherwise
 curl -X POST http://pi4b.local:8080/api/serial/reset \
-  -H "Content-Type: application/json" -d '{"slot": "slot-1"}'
+  -H "Content-Type: application/json" -d '{"slot": "SLOT1"}'
 ```
 
 **Availability:**
@@ -123,7 +123,7 @@ Boards with CH340/CP2102 UART bridges do NOT support USB JTAG.
 
 ```bash
 # Check from Pi
-ssh pi@pi4b.local "lsusb -d 303a:1001"
+ssh pi4b@pi4b.local "lsusb -d 303a:1001"
 # → Bus 001 Device 066: ID 303a:1001 Espressif USB JTAG/serial debug unit
 ```
 
@@ -147,12 +147,12 @@ USB PID `303a:1001` is the same for C3 and S3. The JTAG TAP ID identifies the ch
 
 ```bash
 # ESP32-C3
-ssh pi@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
+ssh pi4b@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
   -f board/esp32c3-builtin.cfg \
   -c 'gdb port 3333' -c 'telnet port 4444' -c 'bindto 0.0.0.0'"
 
 # ESP32-S3
-ssh pi@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
+ssh pi4b@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
   -f board/esp32s3-builtin.cfg \
   -c 'gdb port 3333' -c 'telnet port 4444' -c 'bindto 0.0.0.0'"
 ```
@@ -230,18 +230,18 @@ Channel A (JTAG) must be released before OpenOCD can use it:
 
 ```bash
 # Find the USB bus ID
-ssh pi@pi4b.local "lsusb -d 0403:6010"
+ssh pi4b@pi4b.local "lsusb -d 0403:6010"
 # → Bus 001 Device 020: ID 0403:6010 ... FT2232C/D/H
 
 # Unbind channel A (interface 0)
-ssh pi@pi4b.local "echo '1-1.4:1.0' | sudo tee /sys/bus/usb/drivers/ftdi_sio/unbind"
+ssh pi4b@pi4b.local "echo '1-1.4:1.0' | sudo tee /sys/bus/usb/drivers/ftdi_sio/unbind"
 # Channel B (/dev/ttyUSB1) remains for UART
 ```
 
 ### Start OpenOCD with ESP-Prog
 
 ```bash
-ssh pi@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
+ssh pi4b@pi4b.local "openocd-esp32 -s /usr/local/share/openocd-esp32/scripts \
   -f interface/ftdi/esp_ftdi.cfg \
   -f target/esp32.cfg \
   -c 'gdb port 3333' -c 'telnet port 4444' -c 'bindto 0.0.0.0'"
@@ -306,7 +306,7 @@ debug_port = pi4b.local:3333
 
 ---
 
-## API Endpoints (when implemented)
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -316,8 +316,7 @@ debug_port = pi4b.local:3333
 | GET | /api/debug/group | Slot groups (dual-USB) |
 | GET | /api/debug/probes | Available ESP-Prog probes |
 
-These endpoints are specified in the FSD (FR-024/025/026) but not yet
-implemented in portal.py.
+All five are implemented in `portal.py` (route table around lines 1634/1709).
 
 **Note:** `POST /api/debug/start` and `POST /api/debug/stop` are optional overrides -- OpenOCD starts automatically when a device is plugged in. No API call is needed for normal use. All parameters are optional; the workbench auto-detects slot, chip, and probe.
 
@@ -464,7 +463,7 @@ code or use watchpoints.
 
 ```bash
 # List all ESP32 configs on the Pi
-ssh pi@pi4b.local "ls /usr/local/share/openocd-esp32/scripts/board/esp32*"
+ssh pi4b@pi4b.local "ls /usr/local/share/openocd-esp32/scripts/board/esp32*"
 ```
 
 Key configs:

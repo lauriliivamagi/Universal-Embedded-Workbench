@@ -50,12 +50,12 @@ Reads serial output via RFC2217 proxy. Optionally waits for a regex pattern.
 # Wait up to 10s for a pattern match
 curl -X POST http://pi4b.local:8080/api/serial/monitor \
   -H 'Content-Type: application/json' \
-  -d '{"slot": "slot-1", "pattern": "WiFi connected", "timeout": 10}'
+  -d '{"slot": "SLOT1", "pattern": "WiFi connected", "timeout": 10}'
 
 # Just capture output for 5s (no pattern)
 curl -X POST http://pi4b.local:8080/api/serial/monitor \
   -H 'Content-Type: application/json' \
-  -d '{"slot": "slot-1", "timeout": 5}'
+  -d '{"slot": "SLOT1", "timeout": 5}'
 ```
 
 Response: `{"ok": true, "matched": true, "line": "WiFi connected to MyAP", "output": [...]}`

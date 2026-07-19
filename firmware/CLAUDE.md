@@ -28,15 +28,25 @@ idf.py build                   # -> build/wb-test-firmware.bin
 
 ## Tooling (MCP)
 
-The repo root wires up two Espressif MCP servers (see [`../.mcp.json`](../.mcp.json)) — use them
+The repo root wires up MCP servers (see [`../.mcp.json`](../.mcp.json)) — use them
 when working in this `firmware/` tree, in preference to guessing or generic web search:
 
 - **`espressif-documentation`** — look up **ESP-IDF v5.x** APIs, Kconfig options, and guides
   (this firmware targets v5.x; ignore v6.0+ API guidance).
 - **`esp-component-registry`** — search managed components before hand-rolling or running
   `idf.py add-dependency`.
+- **`rigol`** — Rigol DS2302A scope (`mcp__rigol__*`) for bench measurements. Besides
+  measure/capture/screenshot it drives the **edge trigger** (`set_trigger`,
+  `get_trigger_status`, `single(wait_timeout_s=…)`) and **RS232/UART decode**
+  (`configure_decoder`, `read_decode`). To catch an intermittent UART burst:
+  `set_trigger(sweep='NORMAL', slope='NEG', level_v=<mid-swing>)` → `configure_decoder(…)`
+  **before** capturing (the scope decodes during acquisition) → `single(wait_timeout_s=…)`
+  → `read_decode` / `capture_waveform`. If a level/threshold reports `*_clamped`, recentre
+  the signal with `set_channel(offset_v=…)` (`get_state` shows current offsets) and retry.
+  The `command`/`RIGOL_RESOURCE` in `.mcp.json` are bench-specific — adjust for your rig.
 
-They're only relevant here — the rest of the repo is Pi-side Python and docs.
+The `logic2` (Saleae) server is documented with the `saleae-logic-*` skills. The Espressif and
+rigol servers are firmware-facing; the rest of the repo is Pi-side Python and docs.
 
 ## Don't
 

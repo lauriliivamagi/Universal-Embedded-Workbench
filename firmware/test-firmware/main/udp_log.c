@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "freertos/message_buffer.h"
 #include "lwip/sockets.h"
 #include <string.h>
@@ -16,6 +17,10 @@ static const char *TAG = "udp_log";
 static MessageBufferHandle_t s_msg_buf;
 static struct sockaddr_in s_dest_addr;
 static vprintf_like_t s_orig_vprintf;
+/* Serializes writers into the message buffer: the log hook runs in whatever
+   task calls ESP_LOGx (wifi, BLE host, httpd, heartbeat...), and a stream/
+   message buffer permits only one concurrent writer. */
+static SemaphoreHandle_t s_tx_mutex;
 
 /* Forward a literal (no-format-args) line to the original vprintf. Avoids
    synthesising a bogus va_list for the error paths below. */
@@ -38,13 +43,20 @@ static int udp_log_vprintf(const char *fmt, va_list args)
     /* Always print to serial */
     int ret = s_orig_vprintf(fmt, args);
 
-    if (s_msg_buf) {
+    /* Copy to the UDP buffer only from task context (esp_log's vprintf hook is
+       task-context; ISR logging bypasses it). Serialize concurrent writers with
+       the mutex — a message buffer allows only one at a time. Take/send are
+       non-blocking so logging never stalls a caller; on contention or a full
+       buffer the line is simply dropped from the UDP copy (serial still has it). */
+    if (s_msg_buf && s_tx_mutex && !xPortInIsrContext()) {
         char buf[MAX_LOG_LINE];
         int len = vsnprintf(buf, sizeof(buf), fmt, args_copy);
         if (len > 0) {
             if (len >= (int)sizeof(buf)) len = sizeof(buf) - 1;
-            /* Non-blocking send — drop if buffer full */
-            xMessageBufferSendFromISR(s_msg_buf, buf, len, NULL);
+            if (xSemaphoreTake(s_tx_mutex, 0) == pdTRUE) {
+                xMessageBufferSend(s_msg_buf, buf, len, 0);
+                xSemaphoreGive(s_tx_mutex);
+            }
         }
     }
     va_end(args_copy);
@@ -76,6 +88,13 @@ esp_err_t udp_log_init(const char *host, uint16_t port)
 {
     s_msg_buf = xMessageBufferCreate(MSG_BUF_SIZE);
     if (!s_msg_buf) return ESP_ERR_NO_MEM;
+
+    s_tx_mutex = xSemaphoreCreateMutex();
+    if (!s_tx_mutex) {
+        vMessageBufferDelete(s_msg_buf);
+        s_msg_buf = NULL;
+        return ESP_ERR_NO_MEM;
+    }
 
     memset(&s_dest_addr, 0, sizeof(s_dest_addr));
     s_dest_addr.sin_family = AF_INET;

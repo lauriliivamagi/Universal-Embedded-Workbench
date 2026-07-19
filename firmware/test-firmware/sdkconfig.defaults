@@ -14,12 +14,15 @@ CONFIG_BT_NIMBLE_ROLE_BROADCASTER=n
 # WiFi
 CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
 
-# OTA - allow plain HTTP
+# OTA - allow plain HTTP (lab network; see ota_update.h). Rollback protects
+# against a bad image boot-looping: the bootloader marks a freshly-OTA'd app
+# "pending verify" and rolls back to the previous slot unless the app calls
+# esp_ota_mark_app_valid_cancel_rollback() after it comes up (done in app_main).
 CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=y
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
 # DHCP captive portal support
 CONFIG_LWIP_DHCPS=y
-CONFIG_ESP_ENABLE_DHCP_CAPTIVEPORTAL=y
 
 # Log level
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y

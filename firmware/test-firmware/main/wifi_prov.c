@@ -8,14 +8,19 @@
 #include "esp_event.h"
 #include "lwip/inet.h"
 #include "dns_server.h"
+#include "esp_timer.h"
 #include "cJSON.h"
 #include <string.h>
 #include <stdlib.h>
 
 static const char *TAG = "wifi_prov";
 
-#define AP_SSID        "WB-Test-Setup"
-#define STA_MAX_RETRY  20
+#define AP_SSID            "WB-Test-Setup"
+#define STA_MAX_RETRY      20
+/* After the fast retries are exhausted, keep retrying slowly so a transient AP
+   outage self-heals instead of dead-ending. A wrong password is recovered via
+   /wifi-reset (erases NVS creds → reboots into AP provisioning). */
+#define STA_SLOW_RETRY_US  (30 * 1000 * 1000)   /* 30 s */
 
 extern const char portal_html_start[] asm("_binary_portal_html_start");
 extern const char portal_html_end[]   asm("_binary_portal_html_end");
@@ -24,6 +29,13 @@ static int s_retry_count = 0;
 static bool s_sta_connected = false;
 static bool s_ap_mode = false;
 static httpd_handle_t s_server = NULL;
+static esp_timer_handle_t s_slow_retry_timer = NULL;
+
+static void slow_retry_cb(void *arg)
+{
+    ESP_LOGW(TAG, "STA slow-retry: attempting reconnect");
+    esp_wifi_connect();
+}
 
 /* ── Event handlers ────────────────────────────────────────────── */
 
@@ -44,8 +56,22 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
                          dis->reason, s_retry_count, STA_MAX_RETRY);
                 esp_wifi_connect();
             } else {
-                ESP_LOGE(TAG, "STA failed after %d retries (last reason=%d)",
-                         STA_MAX_RETRY, dis->reason);
+                /* Don't dead-end: keep retrying slowly in the background so the
+                   device reconnects if the AP comes back. The periodic timer is
+                   idempotent (started once; each failed slow retry re-enters
+                   this branch but the timer is already active). */
+                ESP_LOGE(TAG, "STA failed after %d fast retries (last reason=%d);"
+                         " slow-retrying every %ds", STA_MAX_RETRY, dis->reason,
+                         STA_SLOW_RETRY_US / 1000000);
+                if (!s_slow_retry_timer) {
+                    const esp_timer_create_args_t targs = {
+                        .callback = slow_retry_cb, .name = "sta_slow_retry",
+                    };
+                    esp_timer_create(&targs, &s_slow_retry_timer);
+                }
+                if (s_slow_retry_timer && !esp_timer_is_active(s_slow_retry_timer)) {
+                    esp_timer_start_periodic(s_slow_retry_timer, STA_SLOW_RETRY_US);
+                }
             }
             break;
         }
@@ -62,6 +88,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t base,
         ESP_LOGI(TAG, "STA got IP: " IPSTR, IP2STR(&e->ip_info.ip));
         s_sta_connected = true;
         s_retry_count = 0;
+        if (s_slow_retry_timer && esp_timer_is_active(s_slow_retry_timer))
+            esp_timer_stop(s_slow_retry_timer);
     }
 }
 
@@ -112,12 +140,26 @@ static bool form_get(const char *body, const char *key, char *out, size_t out_sz
 
 static esp_err_t connect_post_handler(httpd_req_t *req)
 {
-    char buf[256];
-    int len = httpd_req_recv(req, buf, sizeof(buf) - 1);
-    if (len <= 0) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No body");
+    /* A max SSID (32) + max WPA2 passphrase (63), percent-encoded and wrapped in
+       JSON, can exceed 255 bytes — the old single 256-byte recv truncated it and
+       committed a partial password. Size to content_len and read the whole body
+       in a loop. */
+    char buf[1024];
+    if (req->content_len <= 0 || req->content_len >= (int)sizeof(buf)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad body size");
         return ESP_FAIL;
     }
+    int total = 0;
+    while (total < req->content_len) {
+        int r = httpd_req_recv(req, buf + total, req->content_len - total);
+        if (r == HTTPD_SOCK_ERR_TIMEOUT) continue;
+        if (r <= 0) {
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No body");
+            return ESP_FAIL;
+        }
+        total += r;
+    }
+    int len = total;
     buf[len] = '\0';
 
     char ssid_buf[33] = {0};

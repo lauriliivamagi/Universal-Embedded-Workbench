@@ -2,6 +2,7 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_app_desc.h"
+#include "esp_ota_ops.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_store.h"
@@ -34,8 +35,10 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    /* 3. UDP debug logging — captures all subsequent logs */
-    udp_log_init("192.168.0.87", 5555);
+    /* 3. UDP debug logging — captures all subsequent logs. Target the workbench
+     *    SoftAP gateway (the Pi at 192.168.4.1) that a provisioned DUT sees; on a
+     *    real LAN where the Pi is pi4b.local, point this at that address. */
+    udp_log_init("192.168.4.1", 5555);
 
     /* 4. WiFi — STA (stored creds) or AP (captive portal) */
     wifi_prov_init();
@@ -56,6 +59,13 @@ void app_main(void)
 
     /* 8. Heartbeat — periodic log to confirm firmware is alive */
     xTaskCreate(heartbeat_task, "heartbeat", 4096, NULL, 1, NULL);
+
+    /* 9. Init reached — accept this image so the bootloader won't roll it back.
+     *    With CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE a freshly-OTA'd app boots in
+     *    "pending verify" state; reaching here means the core subsystems came up,
+     *    so mark it valid. No-op (returns an error we ignore) on a normally
+     *    flashed image that isn't pending verification. */
+    esp_ota_mark_app_valid_cancel_rollback();
 
     ESP_LOGI(TAG, "Init complete, running event-driven");
 }
